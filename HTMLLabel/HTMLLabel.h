@@ -34,11 +34,18 @@
 
 
 static NSString *const HTMLFont = @"font";
-static NSString *const HTMLBoldFont = @"boldFont";
-static NSString *const HTMLItalicFont = @"italicFont";
 static NSString *const HTMLTextColor = @"textColor";
 static NSString *const HTMLLinkColor = @"linkColor";
 static NSString *const HTMLUnderlineLinks = @"underlineLinks";
+
+
+@interface UIFont (Variants)
+
+- (UIFont *)boldFontOfSize:(CGFloat)size;
+- (UIFont *)italicFontOfSize:(CGFloat)size;
+- (UIFont *)boldItalicFontOfSize:(CGFloat)size;
+
+@end
 
 
 @interface NSString (HTMLRendering)
@@ -64,8 +71,6 @@ static NSString *const HTMLUnderlineLinks = @"underlineLinks";
 @interface HTMLLabel : UILabel
 
 @property (nonatomic, weak) IBOutlet id<HTMLLabelDelegate> delegate;
-@property (nonatomic, strong) UIFont *boldFont;
-@property (nonatomic, strong) UIFont *italicFont;
 @property (nonatomic, strong) UIColor *linkColor;
 @property (nonatomic, assign) BOOL underlineLinks;
 

@@ -33,6 +33,78 @@
 #import "HTMLLabel.h"
 
 
+#pragma mark -
+#pragma mark Fonts
+
+
+@implementation UIFont (Variants)
+
+- (UIFont *)fontWithSize:(CGFloat)fontSize traits:(NSArray *)traits
+{
+    NSMutableArray *blacklist = [@[@"bold", @"oblique", @"light", @"condensed"] mutableCopy];
+    for (NSString *trait in traits)
+    {
+        //is desired trait
+        [blacklist removeObject:trait];
+    }
+    for (NSString *trait in [blacklist reverseObjectEnumerator])
+    {
+        //is property of base font
+        if ([[self.fontName lowercaseString] rangeOfString:trait].location != NSNotFound)
+        {
+            [blacklist removeObject:trait];
+        }
+    }
+    NSString *familyName = [self familyName];
+    for (NSString *name in [UIFont fontNamesForFamilyName:familyName])
+    {
+        BOOL match = YES;
+        for (NSString *trait in blacklist)
+        {
+            if ([[name lowercaseString] rangeOfString:trait].location != NSNotFound)
+            {
+                match = NO;
+                break;
+            }
+        }
+        for (NSString *trait in traits)
+        {
+            if ([[name lowercaseString] rangeOfString:trait].location == NSNotFound)
+            {
+                match = NO;
+                break;
+            }
+        }
+        if (match)
+        {
+            return [UIFont fontWithName:name size:fontSize];
+        }
+    }
+    return self;
+}
+
+- (UIFont *)boldFontOfSize:(CGFloat)fontSize
+{
+    return [self fontWithSize:fontSize traits:@[@"bold"]];
+}
+
+- (UIFont *)italicFontOfSize:(CGFloat)fontSize
+{
+    return [self fontWithSize:fontSize traits:@[@"oblique"]];
+}
+
+- (UIFont *)boldItalicFontOfSize:(CGFloat)fontSize
+{
+    return [self fontWithSize:fontSize traits:@[@"bold", @"oblique"]];
+}
+
+@end
+
+
+#pragma mark -
+#pragma mark HTML parsing
+
+
 @interface HTMLTokenAttributes : NSObject <NSMutableCopying>
 
 @property (nonatomic, copy) NSString *href;
@@ -81,8 +153,21 @@
     
     //select font
     UIFont *font = styles[HTMLFont];
-    if (_attributes.bold) font = styles[HTMLBoldFont];
-    else if (_attributes.italic) font = styles[HTMLItalicFont];
+    if (_attributes.bold)
+    {
+        if (_attributes.italic)
+        {
+            font = [font boldItalicFontOfSize:font.pointSize];
+        }
+        else
+        {
+            font = [font boldFontOfSize:font.pointSize];
+        }
+    }
+    else if (_attributes.italic)
+    {
+        font = [font italicFontOfSize:font.pointSize];
+    }
     
     //draw text
     [_text drawInRect:rect withFont:font];
@@ -120,33 +205,40 @@
         _tokens = [[NSMutableArray alloc] init];
         _text = [[NSMutableString alloc] init];
 
-        //sanitize entities
-        html = [self replacePattern:@"&nbsp;" inString:html withPattern:@"\u00A0"];
-        html = [self replacePattern:@"&pound;" inString:html withPattern:@"£"];
-        html = [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
-        
-        //sanitize tags
-        html = [self replacePattern:@"<(?!((?:/ *)?(?:br|p|b|i|u|strong|em|ol|ul|li|a)))[^>]+>" inString:html withPattern:@""];
-        html = [self replacePattern:@"<(p|b|i|u|strong|em|ol|ul|li)[^>]+>" inString:html withPattern:@"<$1>"];
-        html = [self replacePattern:@"<(br)>" inString:html withPattern:@"<$1/>"];
+        if (html)
+        {
+            //sanitize entities
+            html = [self replacePattern:@"&nbsp;" inString:html withPattern:@"\u00A0"];
+            html = [self replacePattern:@"&pound;" inString:html withPattern:@"£"];
+            html = [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
+            
+            //sanitize tags
+            html = [self replacePattern:@"<(?!((?:/ *)?(?:br|p|b|i|u|strong|em|ol|ul|li|a)))[^>]+>" inString:html withPattern:@""];
+            html = [self replacePattern:@"<(p|b|i|u|strong|em|ol|ul|li)[^>]+>" inString:html withPattern:@"<$1>"];
+            html = [self replacePattern:@"<(br)>" inString:html withPattern:@"<$1/>"];
 
-        //wrap in html tag
-        html = [NSString stringWithFormat:@"<html>%@</html>", html];
-        
-        //parse 
-        _html = html;
-        NSData *data = [html dataUsingEncoding:NSUTF8StringEncoding];
-        NSXMLParser *parser = [[NSXMLParser alloc] initWithData:data];
-        parser.delegate = self;
-        [parser parse];
+            //wrap in html tag
+            html = [NSString stringWithFormat:@"<html>%@</html>", html];
+            
+            //parse 
+            _html = html;
+            NSData *data = [html dataUsingEncoding:NSUTF8StringEncoding];
+            NSXMLParser *parser = [[NSXMLParser alloc] initWithData:data];
+            parser.delegate = self;
+            [parser parse];
+        }
     }
     return self;
 }
 
 - (NSString *)replacePattern:(NSString *)pattern inString:(NSString *)string withPattern:(NSString *)replacement
 {
-    NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern options:NSRegularExpressionCaseInsensitive error:nil];
-    return [regex stringByReplacingMatchesInString:string options:0 range:NSMakeRange(0, [string length]) withTemplate:replacement];
+    if (pattern && string)
+    {
+        NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern options:NSRegularExpressionCaseInsensitive error:nil];
+        return [regex stringByReplacingMatchesInString:string options:0 range:NSMakeRange(0, [string length]) withTemplate:replacement];
+    }
+    return string;
 }
 
 - (void)addText:(NSString *)text
@@ -309,6 +401,10 @@
 @end
 
 
+#pragma mark -
+#pragma mark HTML layout
+
+
 @interface HTMLTokenLayout : NSObject
 
 @property (nonatomic, copy) NSArray *tokens;
@@ -332,12 +428,18 @@
     UIFont *font = _styles[HTMLFont];
     if (token.attributes.bold)
     {
-        font = _styles[HTMLBoldFont] ?: font;
+        if (token.attributes.italic)
+        {
+            font = [font boldItalicFontOfSize:font.pointSize];
+        }
+        else
+        {
+            font = [font boldFontOfSize:font.pointSize];
+        }
     }
     else if (token.attributes.italic)
     {
-        //TODO: what about bold italic?
-        font = _styles[HTMLItalicFont] ?: font;
+        font = [font italicFontOfSize:font.pointSize];
     }
     return font;
 }
@@ -494,6 +596,10 @@
 @end
 
 
+#pragma mark -
+#pragma mark HTML label
+
+
 @interface HTMLLabel () <UIGestureRecognizerDelegate>
 
 @property (nonatomic, strong) HTMLTokenLayout *layout;
@@ -555,18 +661,6 @@
     [self setNeedsDisplay];
 }
 
-- (void)setBoldFont:(UIFont *)boldFont
-{
-    _boldFont = boldFont;
-    [self setNeedsDisplay];
-}
-
-- (void)setItalicFont:(UIFont *)italicFont
-{
-    _italicFont = italicFont;
-    [self setNeedsDisplay];
-}
-
 - (void)setLinkColor:(UIColor *)linkColor
 {
     _linkColor = linkColor;
@@ -583,8 +677,6 @@
 {
     return @{
         HTMLFont: self.font,
-        HTMLBoldFont: self.boldFont ?: [UIFont boldSystemFontOfSize:self.font.pointSize],
-        HTMLItalicFont: self.italicFont ?: [UIFont italicSystemFontOfSize:self.font.pointSize],
         HTMLTextColor: self.textColor ?: [UIColor blackColor],
         HTMLLinkColor: self.linkColor ?: [UIColor blueColor],
         HTMLUnderlineLinks: @(_underlineLinks)
