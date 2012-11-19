@@ -131,12 +131,17 @@
     return copy;
 }
 
+- (NSString *)description
+{
+    return [[super description] stringByAppendingFormat:@"bold: %i; italic: %i; underlined: %i; href: %@", _bold, _italic, _underlined, _href];
+}
+
 @end
 
 
 @interface HTMLToken : NSObject
 
-@property (nonatomic, copy) HTMLTokenAttributes *attributes;
+@property (nonatomic, strong) HTMLTokenAttributes *attributes;
 @property (nonatomic, copy) NSString *text;
 
 - (void)drawInRect:(CGRect)rect withStyles:(NSDictionary *)styles;
@@ -180,6 +185,11 @@
     }
 }
 
+- (NSString *)description
+{
+    return [[super description] stringByAppendingFormat:@"%@", [_text isEqualToString:@"\n"]? @"\\n": _text];
+}
+
 @end
 
 
@@ -214,7 +224,7 @@
             
             //sanitize tags
             html = [self replacePattern:@"<(?!((?:/ *)?(?:br|p|b|i|u|strong|em|ol|ul|li|a)))[^>]+>" inString:html withPattern:@""];
-            html = [self replacePattern:@"<(p|b|i|u|strong|em|ol|ul|li)[^>]+>" inString:html withPattern:@"<$1>"];
+            html = [self replacePattern:@"<(br|p|b|i|u|strong|em|ol|ul|li) [^>]+>" inString:html withPattern:@"<$1>"];
             html = [self replacePattern:@"<(br)>" inString:html withPattern:@"<$1/>"];
 
             //wrap in html tag
@@ -345,10 +355,6 @@
     }
 	[_stack addObject:attributes];
 }
-- (void)parser:(NSXMLParser *)parser parseErrorOccurred:(NSError *)parseError
-{
-    NSLog(@"XML parser error: %@ in %@", parseError, _html);
-}
 
 - (void)parser:(NSXMLParser *)parser didEndElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName
 {
@@ -395,7 +401,12 @@
 
 - (void)parser:(NSXMLParser *)parser foundCDATA:(NSData *)CDATABlock
 {
-	[self addText:[[[NSString alloc] initWithData:CDATABlock encoding:NSUTF8StringEncoding] autorelease]];
+	[self addText:[[NSString alloc] initWithData:CDATABlock encoding:NSUTF8StringEncoding]];
+}
+
+- (void)parser:(NSXMLParser *)parser parseErrorOccurred:(NSError *)parseError
+{
+    NSLog(@"XML parser error: %@ input: %@", parseError, _html);    
 }
 
 @end
@@ -492,8 +503,32 @@
             [_frames addObject:[NSValue valueWithCGRect:CGRectZero]];
             _size.height = position.y;
         }
+        else if ([token.text isEqualToString:@" "] || [token.text isEqualToString:@""])
+        {
+            //space
+            CGSize size = [token.text sizeWithFont:font];
+            if (position.x == 0.0f || position.x + size.width > _maxWidth)
+            {
+                //discard token
+                size = CGSizeZero;
+            }
+        
+            //calculate frame
+            CGRect frame;
+            frame.origin = position;
+            frame.size = size;
+            [_frames addObject:[NSValue valueWithCGRect:frame]];
+            
+            //prepare for next frame
+            position.x += size.width;
+            lineHeight = MAX(lineHeight, size.height);
+            
+            //update size
+            _size.height = position.y + lineHeight;
+            _size.width = MAX(_size.width, position.x);
+        }
         else
-        {       
+        {
             //calculate size
             CGSize size = [token.text sizeWithFont:font];
             if (position.x + size.width > _maxWidth)
@@ -536,7 +571,7 @@
             
             //update size
             _size.height = position.y + lineHeight;
-            _size.width = MAX(_size.width, size.width);
+            _size.width = MAX(_size.width, position.x);
         }
     }
 }
