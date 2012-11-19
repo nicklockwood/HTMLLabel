@@ -157,7 +157,7 @@
 - (void)endText
 {
     //collapse white space
-    NSString *text = [_text stringByReplacingOccurrencesOfString:@"[\t\n\r ]+" withString:@" " options:NSRegularExpressionSearch range:NSMakeRange(0, [text length])];
+    NSString *text = [_text stringByReplacingOccurrencesOfString:@"[\t\n\r ]+" withString:@" " options:NSRegularExpressionSearch range:NSMakeRange(0, [_text length])];
     
     //split into words
     NSMutableArray *words = [[text componentsSeparatedByString:@" "] mutableCopy];
@@ -513,12 +513,17 @@
     tapGesture.numberOfTouchesRequired = 1;
     tapGesture.delegate = self;
     [self addGestureRecognizer:tapGesture];
+    
+    HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] initWithHTML:self.text];
+    _layout.tokens = tokenizer.tokens;
+    [self setNeedsDisplay];
 }
 
 - (id)initWithFrame:(CGRect)frame
 {
     if ((self = [super initWithFrame:frame]))
     {
+        self.userInteractionEnabled = YES;
         [self setUp];
     }
     return self;
@@ -622,6 +627,11 @@
         if (token.attributes.href)
         {
             NSURL *URL = [NSURL URLWithString:token.attributes.href];
+            if ([_delegate respondsToSelector:@selector(HTMLLabel:tappedLinkWithURL:bounds:)])
+            {
+                CGRect frame = [_layout.frames[[_layout.tokens indexOfObject:token]] CGRectValue];
+                [_delegate HTMLLabel:self tappedLinkWithURL:URL bounds:frame];
+            }
             BOOL openURL = YES;
             if ([_delegate respondsToSelector:@selector(HTMLLabel:shouldOpenURL:)])
             {

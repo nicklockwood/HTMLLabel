@@ -55,6 +55,7 @@ static NSString *const HTMLUnderlineLinks = @"underlineLinks";
 @protocol HTMLLabelDelegate <NSObject>
 @optional
 
+- (void)HTMLLabel:(HTMLLabel *)label tappedLinkWithURL:(NSURL *)URL bounds:(CGRect)bounds;
 - (BOOL)HTMLLabel:(HTMLLabel *)label shouldOpenURL:(NSURL *)URL;
 
 @end
