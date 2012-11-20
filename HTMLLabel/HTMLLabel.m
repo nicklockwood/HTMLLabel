@@ -56,6 +56,13 @@
         }
     }
     NSString *familyName = [self familyName];
+    
+    //special case due to weirdness with iPhone system font
+    if ([familyName isEqualToString:@".Helvetica NeueUI"])
+    {
+        familyName = @"Helvetica Neue";
+    }
+    
     for (NSString *name in [UIFont fontNamesForFamilyName:familyName])
     {
         BOOL match = YES;
@@ -258,17 +265,17 @@
                 [self replacePattern:@"&(?!(gt|lt|amp|quot|(#[0-9]+)));" inString:html withPattern:@""];
                 [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
                 [self replacePattern:@"<(?![/a-z])" inString:html withPattern:@"&lt;"];
-        
+                
                 //sanitize tags
                 [self replacePattern:@"<(?!((?:/ *)?(?:br|div|h[1-6]|p|b|i|u|strong|em|ol|ul|li|a)))[^>]+>"
                             inString:html withPattern:@""];
                 [self replacePattern:@"<(br|div|h[1-6]|p|b|i|u|strong|em|ol|ul|li) [^>]+>" inString:html withPattern:@"<$1>"];
                 [self replacePattern:@"<(br)>" inString:html withPattern:@"<$1/>"];
-
-                //wrap in html tag
-                html = [NSString stringWithFormat:@"<html>%@</html>", html];
                 
-                //parse 
+                //wrap in html tag
+                html = [NSString stringWithFormat:@"<body>%@</body>", html];
+                
+                //parse
                 _html = html;
                 NSData *data = [html dataUsingEncoding:NSUTF8StringEncoding];
                 NSXMLParser *parser = [[NSXMLParser alloc] initWithData:data];
@@ -313,7 +320,7 @@
     
     //split into words
     NSMutableArray *words = [[text componentsSeparatedByString:@" "] mutableCopy];
-
+    
     //create tokens
     for (int i = 0; i < [words count]; i++)
     {
@@ -356,7 +363,7 @@
         {
             if (i < 0 || ![_tokens[i] isLinebreak])
             {
-                 [_tokens addObject:linebreak];
+                [_tokens addObject:linebreak];
             }
         }
     }
@@ -437,7 +444,7 @@
     {
         //discard white-space before a line break
         if ([[_tokens lastObject] isSpace]) [_tokens removeLastObject];
-
+        
         //this is a non-collapsing break, so we
         //won't use the addLinebreaks method
         HTMLToken *linebreak = [[HTMLToken alloc] init];
@@ -473,7 +480,7 @@
 
 - (void)parser:(NSXMLParser *)parser parseErrorOccurred:(NSError *)parseError
 {
-    NSLog(@"XML parser error: %@ input: %@", parseError, _html);    
+    NSLog(@"XML parser error: %@ input: %@", parseError, _html);
 }
 
 @end
@@ -579,7 +586,7 @@
                 //discard token
                 size = CGSizeZero;
             }
-        
+            
             //calculate frame
             CGRect frame;
             frame.origin = position;
@@ -773,10 +780,10 @@
 - (NSDictionary *)htmlStyles
 {
     return @{
-        HTMLFont: self.font,
-        HTMLTextColor: self.textColor ?: [UIColor blackColor],
-        HTMLLinkColor: self.linkColor ?: [UIColor blueColor],
-        HTMLUnderlineLinks: @(_underlineLinks)
+HTMLFont: self.font,
+HTMLTextColor: self.textColor ?: [UIColor blackColor],
+HTMLLinkColor: self.linkColor ?: [UIColor blueColor],
+HTMLUnderlineLinks: @(_underlineLinks)
     };
 }
 
