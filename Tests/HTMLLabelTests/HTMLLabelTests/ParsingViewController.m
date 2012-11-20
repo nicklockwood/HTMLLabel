@@ -40,7 +40,7 @@
 
 - (IBAction)selectInput
 {
-    [[[UIActionSheet alloc] initWithTitle:@"Select input" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:@"Delete all input" otherButtonTitles:@"Lorem ipsum", @"Ordered list", @"Unordered list", @"Naked list", @"Links", nil] showInView:self.view];
+    [[[UIActionSheet alloc] initWithTitle:@"Select input" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:@"Delete all input" otherButtonTitles:@"Lorem ipsum", @"Ordered list", @"Unordered list", @"Naked list", @"Links", @"Broken tags", nil] showInView:self.view];
 }
 
 - (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
@@ -78,6 +78,11 @@
                 case 5:
                 {
                     _inputField.text = @"Lorem ipsum <a href=\"http://apple.com\"> dolor sit er elit lamet, </a> consectetaur cillium adipisicing pecu, sed do eiusmod tempor <a href=\"http://github.com\">incididunt ut labore et dolore magna aliqua.</a> Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+                    break;
+                }
+                case 6:
+                {
+                    _inputField.text = @"Lorem >ipsum dolor sit < er elit lamet, consectetaur cillium adipisicing pecu, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
                     break;
                 }
                 default:

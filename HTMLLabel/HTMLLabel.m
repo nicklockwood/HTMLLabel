@@ -144,12 +144,29 @@
 @property (nonatomic, strong) HTMLTokenAttributes *attributes;
 @property (nonatomic, copy) NSString *text;
 
+- (BOOL)isSpace;
+- (BOOL)isLinebreak;
 - (void)drawInRect:(CGRect)rect withStyles:(NSDictionary *)styles;
 
 @end
 
 
 @implementation HTMLToken
+
+- (BOOL)isSpace
+{
+    return [_text isEqualToString:@" "];
+}
+
+- (BOOL)isLinebreak
+{
+    return [_text isEqualToString:@"\n"];
+}
+
+- (BOOL)isWhitespace
+{
+    return [self isSpace] || [self isLinebreak] || [_text isEqualToString:@"\u00A0"];
+}
 
 - (void)drawInRect:(CGRect)rect withStyles:(NSDictionary *)styles
 {
@@ -181,13 +198,13 @@
     if (_attributes.href? [styles[HTMLUnderlineLinks] boolValue]: _attributes.underlined)
     {
         CGContextRef c = UIGraphicsGetCurrentContext();
-        CGContextFillRect(c, CGRectMake(rect.origin.x, rect.origin.y + font.pointSize, rect.size.width, 1.0f));
+        CGContextFillRect(c, CGRectMake(rect.origin.x, rect.origin.y + font.pointSize + 1.0f, rect.size.width, 1.0f));
     }
 }
 
 - (NSString *)description
 {
-    return [[super description] stringByAppendingFormat:@"%@", [_text isEqualToString:@"\n"]? @"\\n": _text];
+    return [[super description] stringByAppendingFormat:@"%@", [self isLinebreak]? @"\\n": _text];
 }
 
 @end
@@ -207,48 +224,81 @@
 
 @implementation HTMLTokenizer
 
-- (id)initWithHTML:(NSString *)html
+- (NSCache *)cache
+{
+    static NSCache *cache = nil;
+    if (cache == nil)
+    {
+        cache = [[NSCache alloc] init];
+    }
+    return cache;
+}
+
+- (id)initWithHTML:(NSString *)input
 {
     if ((self = [super init]))
     {
-        _stack = [[NSMutableArray alloc] init];
-        _tokens = [[NSMutableArray alloc] init];
-        _text = [[NSMutableString alloc] init];
-
-        if (html)
+        if (input)
         {
-            //sanitize entities
-            html = [self replacePattern:@"&nbsp;" inString:html withPattern:@"\u00A0"];
-            html = [self replacePattern:@"&pound;" inString:html withPattern:@"£"];
-            html = [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
-            
-            //sanitize tags
-            html = [self replacePattern:@"<(?!((?:/ *)?(?:br|p|b|i|u|strong|em|ol|ul|li|a)))[^>]+>" inString:html withPattern:@""];
-            html = [self replacePattern:@"<(br|p|b|i|u|strong|em|ol|ul|li) [^>]+>" inString:html withPattern:@"<$1>"];
-            html = [self replacePattern:@"<(br)>" inString:html withPattern:@"<$1/>"];
+            //check cache
+            if (!(_tokens = [[self cache] objectForKey:input]))
+            {
+                _stack = [[NSMutableArray alloc] init];
+                _tokens = [[NSMutableArray alloc] init];
+                _text = [[NSMutableString alloc] init];
+                
+                NSMutableString *html = [input mutableCopy];
+                
+                //sanitize entities
+                [self replaceEntities:@{
+                 @"nbsp":@"\u00A0", @"bull":@"•", @"copy":@"©", @"reg":@"®", @"deg":@"°",
+                 @"ndash":@"–", @"mdash":@"—", @"apos":@"’", @"lsquo":@"‘", @"ldquo":@"“", @"rsquo":@"’", @"rdquo":@"”",
+                 @"cent":@"¢", @"pound":@"£", @"euro":@"€", @"yen":@"¥"
+                 } inString:html];
+                [self replacePattern:@"&(?!(gt|lt|amp|quot|(#[0-9]+)));" inString:html withPattern:@""];
+                [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
+                [self replacePattern:@"<(?![/a-z])" inString:html withPattern:@"&lt;"];
+        
+                //sanitize tags
+                [self replacePattern:@"<(?!((?:/ *)?(?:br|div|h[1-6]|p|b|i|u|strong|em|ol|ul|li|a)))[^>]+>"
+                            inString:html withPattern:@""];
+                [self replacePattern:@"<(br|div|h[1-6]|p|b|i|u|strong|em|ol|ul|li) [^>]+>" inString:html withPattern:@"<$1>"];
+                [self replacePattern:@"<(br)>" inString:html withPattern:@"<$1/>"];
 
-            //wrap in html tag
-            html = [NSString stringWithFormat:@"<html>%@</html>", html];
-            
-            //parse 
-            _html = html;
-            NSData *data = [html dataUsingEncoding:NSUTF8StringEncoding];
-            NSXMLParser *parser = [[NSXMLParser alloc] initWithData:data];
-            parser.delegate = self;
-            [parser parse];
+                //wrap in html tag
+                html = [NSString stringWithFormat:@"<html>%@</html>", html];
+                
+                //parse 
+                _html = html;
+                NSData *data = [html dataUsingEncoding:NSUTF8StringEncoding];
+                NSXMLParser *parser = [[NSXMLParser alloc] initWithData:data];
+                parser.delegate = self;
+                [parser parse];
+                
+                //cache result
+                [[self cache] setObject:_tokens forKey:input];
+            }
         }
     }
     return self;
 }
 
-- (NSString *)replacePattern:(NSString *)pattern inString:(NSString *)string withPattern:(NSString *)replacement
+- (void)replacePattern:(NSString *)pattern inString:(NSMutableString *)string withPattern:(NSString *)replacement
 {
     if (pattern && string)
     {
         NSRegularExpression *regex = [NSRegularExpression regularExpressionWithPattern:pattern options:NSRegularExpressionCaseInsensitive error:nil];
-        return [regex stringByReplacingMatchesInString:string options:0 range:NSMakeRange(0, [string length]) withTemplate:replacement];
+        [regex replaceMatchesInString:string options:0 range:NSMakeRange(0, [string length]) withTemplate:replacement];
     }
-    return string;
+}
+
+- (void)replaceEntities:(NSDictionary *)entitiesAndReplacements inString:(NSMutableString *)string
+{
+    for (NSString *entity in entitiesAndReplacements)
+    {
+        [self replacePattern:[NSString stringWithFormat:@"&%@;", entity]
+                    inString:string withPattern:entitiesAndReplacements[entity]];
+    }
 }
 
 - (void)addText:(NSString *)text
@@ -268,7 +318,7 @@
     for (int i = 0; i < [words count]; i++)
     {
         NSString *word  = words[i];
-        if (i > 0)
+        if (i > 0 && ![[_tokens lastObject] isWhitespace])
         {
             //space
             HTMLToken *token = [[HTMLToken alloc] init];
@@ -288,6 +338,28 @@
     
     //clear text
     [_text setString:@""];
+}
+
+- (void)addLinebreaks:(NSInteger)count
+{
+    if ([_tokens count] && count)
+    {
+        HTMLToken *linebreak = [[HTMLToken alloc] init];
+        linebreak.attributes = [_stack lastObject];
+        linebreak.text = @"\n";
+        
+        //discard white-space before a line break
+        if ([[_tokens lastObject] isSpace]) [_tokens removeLastObject];
+        
+        NSInteger last = [_tokens count] - 1;
+        for (int i = last; i > last - count; i--)
+        {
+            if (i < 0 || ![_tokens[i] isLinebreak])
+            {
+                 [_tokens addObject:linebreak];
+            }
+        }
+    }
 }
 
 - (void)parser:(NSXMLParser *)parser didStartElement:(NSString *)elementName namespaceURI:(NSString *)namespaceURI qualifiedName:(NSString *)qName attributes:(NSDictionary *)attributeDict
@@ -312,34 +384,27 @@
     {
         attributes.underlined = YES;
     }
-    else if ([elementName isEqualToString:@"p"] || [elementName isEqualToString:@"ul"] || [elementName isEqualToString:@"ol"])
+    else if ([elementName hasPrefix:@"h"])
     {
-        //ensure there are at least two newlines before element
-        if ([_tokens count] > 1 && ![[_tokens[[_tokens count] - 2] text] isEqualToString:@"\n"])
-        {
-            HTMLToken *token = [[HTMLToken alloc] init];
-            token.attributes = [_stack lastObject];
-            token.text = @"\n";
-            
-            if ([_tokens count] && ![[[_tokens lastObject] text] isEqualToString:@"\n"])
-            {
-                [_tokens addObject:token];
-            }
-            [_tokens addObject:token];
-        }
-        else if ([_tokens count] && ![[[_tokens lastObject] text] isEqualToString:@"\n"])
-        {
-            HTMLToken *token = [[HTMLToken alloc] init];
-            token.attributes = [_stack lastObject];
-            token.text = @"\n";
-            [_tokens addObject:token];
-        }
+        [self addLinebreaks:2];
         
-        if (![elementName isEqualToString:@"p"]) attributes.list = YES;
+        attributes.bold = YES;
+    }
+    else if ([elementName isEqualToString:@"p"] || [elementName isEqualToString:@"div"])
+    {
+        [self addLinebreaks:2];
+    }
+    else if ([elementName isEqualToString:@"ul"] || [elementName isEqualToString:@"ol"])
+    {
+        [self addLinebreaks:2];
+        
+        attributes.list = YES;
         if ([elementName isEqualToString:@"ol"]) attributes.nextListIndex = 1;
     }
     else if ([elementName isEqualToString:@"li"])
     {
+        [self addLinebreaks:1];
+        
         attributes.list = NO;
         NSString *bullet = @"•";
         if (attributes.nextListIndex)
@@ -348,9 +413,16 @@
             ((HTMLTokenAttributes *)[_stack lastObject]).nextListIndex ++;
         }
         
+        //add list bullet
         HTMLToken *token = [[HTMLToken alloc] init];
         token.attributes = [_stack lastObject];
         token.text = bullet;
+        [_tokens addObject:token];
+        
+        //add space after bullet
+        token = [[HTMLToken alloc] init];
+        token.attributes = [_stack lastObject];
+        token.text = @"";
         [_tokens addObject:token];
     }
 	[_stack addObject:attributes];
@@ -363,32 +435,27 @@
     elementName = [elementName lowercaseString];
     if ([elementName isEqualToString:@"br"])
     {
-        HTMLToken *token = [[HTMLToken alloc] init];
-        token.attributes = [_stack lastObject];
-        token.text = @"\n";
-        [_tokens addObject:token];
+        //discard white-space before a line break
+        if ([[_tokens lastObject] isSpace]) [_tokens removeLastObject];
+
+        //this is a non-collapsing break, so we
+        //won't use the addLinebreaks method
+        HTMLToken *linebreak = [[HTMLToken alloc] init];
+        linebreak.attributes = [_stack lastObject];
+        linebreak.text = @"\n";
+        [_tokens addObject:linebreak];
     }
-    else if ([elementName isEqualToString:@"p"])
+    else if ([elementName isEqualToString:@"p"] || [elementName isEqualToString:@"div"] || [elementName hasPrefix:@"h"])
     {
-        HTMLToken *token = [[HTMLToken alloc] init];
-        token.attributes = [_stack lastObject];
-        token.text = @"\n";
-        [_tokens addObject:token];
-        [_tokens addObject:token]; //two line breaks
+        [self addLinebreaks:2];
     }
     else if ([elementName isEqualToString:@"ul"] || [elementName isEqualToString:@"ol"])
     {
-        HTMLToken *token = [[HTMLToken alloc] init];
-        token.attributes = [_stack lastObject];
-        token.text = @"\n";
-        [_tokens addObject:token];
+        [self addLinebreaks:2];
     }
     else if ([elementName isEqualToString:@"li"])
     {
-        HTMLToken *token = [[HTMLToken alloc] init];
-        token.attributes = [_stack lastObject];
-        token.text = @"\n";
-        [_tokens addObject:token];
+        [self addLinebreaks:1];
     }
     
 	[_stack removeLastObject];
@@ -489,7 +556,7 @@
     {
         HTMLToken *token = _tokens[i];
         UIFont *font = [self fontForToken:token];
-        if ([token.text isEqualToString:@"\n"])
+        if ([token isLinebreak])
         {
             //newline
             if (lineHeight == 0.0f)
@@ -503,7 +570,7 @@
             [_frames addObject:[NSValue valueWithCGRect:CGRectZero]];
             _size.height = position.y;
         }
-        else if ([token.text isEqualToString:@" "] || [token.text isEqualToString:@""])
+        else if ([token isSpace])
         {
             //space
             CGSize size = [token.text sizeWithFont:font];
@@ -533,15 +600,10 @@
             CGSize size = [token.text sizeWithFont:font];
             if (position.x + size.width > _maxWidth)
             {
-                if ([token.text isEqualToString:@""])
-                {
-                    //discard token
-                    size = CGSizeZero;
-                }
-                else if (position.x > 0.0f)
+                if (position.x > 0.0f)
                 {
                     //discard previous space token
-                    if (i > 0 && [[[_tokens lastObject] text] isEqualToString:@" "])
+                    if (i > 0 && [[_tokens lastObject] isSpace])
                     {
                         CGRect frame = [_frames[i-1] CGRectValue];
                         frame.size = CGSizeZero;
