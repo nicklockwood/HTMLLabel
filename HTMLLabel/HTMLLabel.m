@@ -267,13 +267,11 @@
                 [self replacePattern:@"<(?![/a-z])" inString:html withPattern:@"&lt;"];
                 
                 //sanitize tags
-                [self replacePattern:@"<(?!((?:/ *)?(?:br|div|h[1-6]|p|b|i|u|strong|em|ol|ul|li|a)))[^>]+>"
-                            inString:html withPattern:@""];
-                [self replacePattern:@"<(br|div|h[1-6]|p|b|i|u|strong|em|ol|ul|li) [^>]+>" inString:html withPattern:@"<$1>"];
-                [self replacePattern:@"<(br)>" inString:html withPattern:@"<$1/>"];
+                [self replacePattern:@"([-_a-z]+)=([^\"'][^ >]+)" inString:html withPattern:@"$1=\"$2\""];
+                [self replacePattern:@"<(area|base|br|col|command|embed|hr|img|input|link|meta|param|source)(\\s[^>]*)?>" inString:html withPattern:@"<$1/>"];
                 
                 //wrap in html tag
-                html = [NSString stringWithFormat:@"<body>%@</body>", html];
+                html = [NSString stringWithFormat:@"<html>%@</html>", html];
                 
                 //parse
                 _html = html;
@@ -391,7 +389,7 @@
     {
         attributes.underlined = YES;
     }
-    else if ([elementName hasPrefix:@"h"])
+    else if ([elementName rangeOfString:@"^h\\d$" options:NSRegularExpressionSearch].length == [elementName length])
     {
         [self addLinebreaks:2];
         
@@ -452,7 +450,8 @@
         linebreak.text = @"\n";
         [_tokens addObject:linebreak];
     }
-    else if ([elementName isEqualToString:@"p"] || [elementName isEqualToString:@"div"] || [elementName hasPrefix:@"h"])
+    else if ([elementName isEqualToString:@"p"] || [elementName isEqualToString:@"div"] ||
+             [elementName rangeOfString:@"^h(\\d$|r)" options:NSRegularExpressionSearch].length == [elementName length])
     {
         [self addLinebreaks:2];
     }
