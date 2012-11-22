@@ -119,6 +119,8 @@
 @property (nonatomic, assign) BOOL italic;
 @property (nonatomic, assign) BOOL underlined;
 @property (nonatomic, assign) BOOL list;
+@property (nonatomic, assign) BOOL bullet;
+@property (nonatomic, assign) NSInteger listLevel;
 @property (nonatomic, assign) NSInteger nextListIndex;
 
 @end
@@ -134,6 +136,7 @@
     copy.italic = _italic;
     copy.underlined = _underlined;
     copy.list = _list;
+    copy.listLevel = _listLevel;
     copy.nextListIndex = _nextListIndex;
     return copy;
 }
@@ -172,15 +175,11 @@
 
 - (BOOL)isWhitespace
 {
-    return [self isSpace] || [self isLinebreak] || [_text isEqualToString:@"\u00A0"];
+    return [self isSpace] || [self isLinebreak] || [_text isEqualToString:@"\u00A0"] || _attributes.bullet;
 }
 
-- (void)drawInRect:(CGRect)rect withStyles:(NSDictionary *)styles
+- (UIFont *)fontForStyles:(NSDictionary *)styles
 {
-    //select color
-    [_attributes.href? styles[HTMLLinkColor]: styles[HTMLTextColor] setFill];
-    
-    //select font
     UIFont *font = styles[HTMLFont];
     if (_attributes.bold)
     {
@@ -197,6 +196,16 @@
     {
         font = [font italicFontOfSize:font.pointSize];
     }
+    return font;
+}
+
+- (void)drawInRect:(CGRect)rect withStyles:(NSDictionary *)styles
+{
+    //select color
+    [_attributes.href? styles[HTMLLinkColor]: styles[HTMLTextColor] setFill];
+    
+    //select font
+    UIFont *font = [self fontForStyles:styles];
     
     //draw text
     [_text drawInRect:rect withFont:font];
@@ -207,6 +216,11 @@
         CGContextRef c = UIGraphicsGetCurrentContext();
         CGContextFillRect(c, CGRectMake(rect.origin.x, rect.origin.y + font.pointSize + 1.0f, rect.size.width, 1.0f));
     }
+}
+
+- (CGSize)sizeWithStyles:(NSDictionary *)styles
+{
+    return [_text sizeWithFont:[self fontForStyles:styles]];
 }
 
 - (NSString *)description
@@ -404,6 +418,7 @@
         [self addLinebreaks:2];
         
         attributes.list = YES;
+        attributes.listLevel ++;
         if ([elementName isEqualToString:@"ol"]) attributes.nextListIndex = 1;
     }
     else if ([elementName isEqualToString:@"li"])
@@ -420,14 +435,9 @@
         
         //add list bullet
         HTMLToken *token = [[HTMLToken alloc] init];
-        token.attributes = [_stack lastObject];
+        token.attributes = [[_stack lastObject] mutableCopy];
+        token.attributes.bullet = YES;
         token.text = bullet;
-        [_tokens addObject:token];
-        
-        //add space after bullet
-        token = [[HTMLToken alloc] init];
-        token.attributes = [_stack lastObject];
-        token.text = @"";
         [_tokens addObject:token];
     }
 	[_stack addObject:attributes];
@@ -479,7 +489,18 @@
 
 - (void)parser:(NSXMLParser *)parser parseErrorOccurred:(NSError *)parseError
 {
-    NSLog(@"XML parser error: %@ input: %@", parseError, _html);
+    [self endText];
+    
+#ifdef DEBUG
+    
+    [self addLinebreaks:2];
+    [self addText:[parseError localizedDescription]];
+    [self endText];
+    
+    NSLog(@"XML parser error: %@", parseError);
+    
+#endif
+    
 }
 
 @end
@@ -495,8 +516,9 @@
 @property (nonatomic, copy) NSDictionary *styles;
 @property (nonatomic, assign) CGFloat maxWidth;
 
-@property (nonatomic, strong) NSMutableArray *frames;
-@property (nonatomic, assign) CGSize size;
+//generated properties
+@property (nonatomic, strong, readonly) NSMutableArray *frames;
+@property (nonatomic, assign, readonly) CGSize size;
 
 - (void)update;
 - (void)drawAtPoint:(CGPoint)point;
@@ -507,36 +529,15 @@
 
 @implementation HTMLTokenLayout
 
-- (UIFont *)fontForToken:(HTMLToken *)token
-{
-    UIFont *font = _styles[HTMLFont];
-    if (token.attributes.bold)
-    {
-        if (token.attributes.italic)
-        {
-            font = [font boldItalicFontOfSize:font.pointSize];
-        }
-        else
-        {
-            font = [font boldFontOfSize:font.pointSize];
-        }
-    }
-    else if (token.attributes.italic)
-    {
-        font = [font italicFontOfSize:font.pointSize];
-    }
-    return font;
-}
-
 - (void)setTokens:(NSArray *)tokens
 {
     _tokens = [tokens copy];
     [self setNeedsUpdate];
 }
 
-- (void)setAttributes:(NSDictionary *)attributes
+- (void)setStyles:(NSDictionary *)styles
 {
-    _styles = [attributes copy];
+    _styles = [styles copy];
     [self setNeedsUpdate];
 }
 
@@ -556,21 +557,25 @@
     _frames = [[NSMutableArray alloc] init];
     _size = CGSizeZero;
     
+    CGFloat oneEm = [@"m" sizeWithFont:_styles[HTMLFont]].width;
+    CGFloat indent = oneEm * 3;
+    CGFloat padding = oneEm;
+
     CGPoint position = CGPointZero;
     CGFloat lineHeight = 0.0f;
+    BOOL newLine = YES;
+    
     for (int i = 0; i < [_tokens count]; i++)
     {
         HTMLToken *token = _tokens[i];
-        UIFont *font = [self fontForToken:token];
+        CGSize size = [token sizeWithStyles:_styles];
         if ([token isLinebreak])
         {
             //newline
-            if (lineHeight == 0.0f)
-            {
-                lineHeight = [@" " sizeWithFont:font].height;
-            }
+            lineHeight = MAX(lineHeight, size.height);
             position = CGPointMake(0.0f, position.y + lineHeight);
             lineHeight = 0.0f;
+            newLine = YES;
             
             //calculate frame and update size
             [_frames addObject:[NSValue valueWithCGRect:CGRectZero]];
@@ -579,8 +584,7 @@
         else if ([token isSpace])
         {
             //space
-            CGSize size = [token.text sizeWithFont:font];
-            if (position.x == 0.0f || position.x + size.width > _maxWidth)
+            if (newLine || position.x + size.width > _maxWidth)
             {
                 //discard token
                 size = CGSizeZero;
@@ -589,6 +593,7 @@
             //calculate frame
             CGRect frame;
             frame.origin = position;
+            frame.origin.x += token.attributes.listLevel * indent;
             frame.size = size;
             [_frames addObject:[NSValue valueWithCGRect:frame]];
             
@@ -602,14 +607,19 @@
         }
         else
         {
+            if (newLine)
+            {
+                //indent list
+                position.x = token.attributes.listLevel * indent;
+            }
+            
             //calculate size
-            CGSize size = [token.text sizeWithFont:font];
             if (position.x + size.width > _maxWidth)
             {
-                if (position.x > 0.0f)
+                if (!newLine)
                 {
                     //discard previous space token
-                    if (i > 0 && [[_tokens lastObject] isSpace])
+                    if (i > 0 && [_tokens[i-1] isSpace])
                     {
                         CGRect frame = [_frames[i-1] CGRectValue];
                         frame.size = CGSizeZero;
@@ -617,13 +627,24 @@
                     }
                     
                     //new line
-                    position = CGPointMake(0.0f, position.y + lineHeight);
+                    position = CGPointMake(token.attributes.listLevel * indent, position.y + lineHeight);
                     lineHeight = 0.0f;
+                    newLine = YES;
                 }
                 else
                 {
                     //truncate
                     size.width = _maxWidth;
+                }
+            }
+            
+            //handle bullets
+            if (token.attributes.bullet)
+            {
+                size.width += padding;
+                if (token.attributes.listLevel)
+                {
+                    position.x -= size.width;
                 }
             }
             
@@ -633,13 +654,14 @@
             frame.size = size;
             [_frames addObject:[NSValue valueWithCGRect:frame]];
             
+            //update size
+            _size.height = position.y + lineHeight;
+            _size.width = MAX(_size.width, position.x + size.width);
+            
             //prepare for next frame
             position.x += size.width;
             lineHeight = MAX(lineHeight, size.height);
-            
-            //update size
-            _size.height = position.y + lineHeight;
-            _size.width = MAX(_size.width, position.x);
+            newLine = NO;
         }
     }
 }
@@ -781,7 +803,7 @@
     return @{
 HTMLFont: self.font,
 HTMLTextColor: self.textColor ?: [UIColor blackColor],
-HTMLLinkColor: self.linkColor ?: [UIColor blueColor],
+HTMLLinkColor: _linkColor ?: [UIColor blueColor],
 HTMLUnderlineLinks: @(_underlineLinks)
     };
 }

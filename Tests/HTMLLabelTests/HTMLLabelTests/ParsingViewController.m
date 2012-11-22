@@ -62,17 +62,17 @@
                 }
                 case 2:
                 {
-                    _inputField.text = @"Lorem ipsum <ol> <li> dolor sit er elit lamet, </li> <li> consectetaur cillium adipisicing pecu, </li> </ol> sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+                    _inputField.text = @"Lorem ipsum <ol> <li> dolor sit er elit lamet, </li> <li> consectetaur cillium adipisicing pecu, <ol> <li> sed do eiusmod tempor incididunt ut labore </li> </ol> </li> </ol> et dolore magna aliqua.";
                     break;
                 }
                 case 3:
                 {
-                    _inputField.text = @"Lorem ipsum <ul> <li> dolor sit er elit lamet, </li> <li> consectetaur cillium adipisicing pecu, </li> </ul> sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+                    _inputField.text = @"Lorem ipsum <ul> <li> dolor sit er elit lamet, </li> <li> consectetaur cillium adipisicing pecu, <ul> <li>sed do eiusmod tempor incididunt </li> </ul> </li> </ul> ut labore et dolore magna aliqua.";
                     break;
                 }
                 case 4:
                 {
-                    _inputField.text = @"Lorem ipsum <li> dolor sit er elit lamet, </li> <li> consectetaur cillium adipisicing pecu, </li> sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
+                    _inputField.text = @"Lorem ipsum <li> dolor sit er elit lamet, </li> <li> consectetaur cillium adipisicing pecu, sed <li>do eiusmod tempor incididunt</li></li> ut labore et dolore magna aliqua.";
                     break;
                 }
                 case 5:
