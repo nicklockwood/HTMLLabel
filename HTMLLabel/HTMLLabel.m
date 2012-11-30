@@ -600,10 +600,6 @@
             //prepare for next frame
             position.x += size.width;
             lineHeight = MAX(lineHeight, size.height);
-            
-            //update size
-            _size.height = position.y + lineHeight;
-            _size.width = MAX(_size.width, position.x);
         }
         else
         {
@@ -655,7 +651,7 @@
             [_frames addObject:[NSValue valueWithCGRect:frame]];
             
             //update size
-            _size.height = position.y + lineHeight;
+            _size.height = MAX(_size.height, position.y + size.height);
             _size.width = MAX(_size.width, position.x + size.width);
             
             //prepare for next frame
