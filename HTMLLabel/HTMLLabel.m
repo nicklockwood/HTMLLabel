@@ -31,6 +31,7 @@
 //
 
 #import "HTMLLabel.h"
+#import <objc/message.h>
 
 
 #pragma mark -
@@ -109,15 +110,15 @@
 
 
 #pragma mark -
-#pragma mark HTML parsing
+#pragma mark HTML token
 
 
 @interface HTMLTokenAttributes : NSObject <NSMutableCopying>
 
 @property (nonatomic, copy) NSString *href;
-@property (nonatomic, assign) BOOL bold;
-@property (nonatomic, assign) BOOL italic;
-@property (nonatomic, assign) BOOL underlined;
+@property (nonatomic, copy) NSString *tag;
+@property (nonatomic, copy) NSArray *classNames;
+@property (nonatomic, strong) HTMLTokenAttributes *parent;
 @property (nonatomic, assign) BOOL list;
 @property (nonatomic, assign) BOOL bullet;
 @property (nonatomic, assign) NSInteger listLevel;
@@ -126,27 +127,7 @@
 @end
 
 
-@implementation HTMLTokenAttributes
-
-- (id)mutableCopyWithZone:(NSZone *)zone
-{
-    HTMLTokenAttributes *copy = [[HTMLTokenAttributes alloc] init];
-    copy.href = _href;
-    copy.bold = _bold;
-    copy.italic = _italic;
-    copy.underlined = _underlined;
-    copy.list = _list;
-    copy.listLevel = _listLevel;
-    copy.nextListIndex = _nextListIndex;
-    return copy;
-}
-
-- (NSString *)description
-{
-    return [[super description] stringByAppendingFormat:@"bold: %i; italic: %i; underlined: %i; href: %@", _bold, _italic, _underlined, _href];
-}
-
-@end
+@class HTMLStyles;
 
 
 @interface HTMLToken : NSObject
@@ -156,7 +137,414 @@
 
 - (BOOL)isSpace;
 - (BOOL)isLinebreak;
-- (void)drawInRect:(CGRect)rect withStyles:(NSDictionary *)styles;
+- (CGSize)sizeWithStyles:(HTMLStyles *)styles;
+- (void)drawInRect:(CGRect)rect withStyles:(HTMLStyles *)styles;
+
+@end
+
+
+#pragma mark -
+#pragma mark HTML styles
+
+
+@interface HTMLStyles : NSObject <NSCopying>
+
+@property (nonatomic, strong, readonly) UIFont *font;
+@property (nonatomic, strong, readonly) UIColor *textColor;
+@property (nonatomic, assign, readonly) CGFloat textSize;
+@property (nonatomic, assign, readonly, getter = isBold) BOOL bold;
+@property (nonatomic, assign, readonly, getter = isItalic) BOOL italic;
+@property (nonatomic, assign, readonly, getter = isUnderlined) BOOL underline;
+
+- (id)initWithDictionary:(NSDictionary *)dict;
+- (NSDictionary *)dictionaryRepresentation;
+- (HTMLStyles *)stylesByAddingStylesFromDictionary:(NSDictionary *)dict;
+- (HTMLStyles *)stylesByAddingStyles:(HTMLStyles *)styles;
+
+@end
+
+
+@interface HTMLStyles ()
+
+@property (nonatomic, copy) NSDictionary *styles;
+
+@end
+
+
+@implementation HTMLStyles
+
+- (id)initWithDictionary:(NSDictionary *)dict
+{
+    if ((self = [super init]))
+    {
+        _styles = [dict copy];
+    }
+    return self;
+}
+
+- (UIFont *)font
+{
+    UIFont *font = _styles[HTMLFont];
+    if ([font isKindOfClass:[NSString class]])
+    {
+        font = [UIFont fontWithName:(NSString *)font size:17.0f];
+    }
+    NSInteger pointSize = [_styles[HTMLTextSize] floatValue] ?: font.pointSize;
+    if (self.bold)
+    {
+        if (self.italic)
+        {
+            font = [font boldItalicFontOfSize:pointSize];
+        }
+        else
+        {
+            font = [font boldFontOfSize:pointSize];
+        }
+    }
+    else if (self.italic)
+    {
+        font = [font italicFontOfSize:pointSize];
+    }
+    return font;
+}
+
+- (UIColor *)textColor
+{
+    UIColor *textColor = _styles[HTMLTextColor];
+    if ([textColor isKindOfClass:[NSString class]])
+    {
+        SEL selector = NSSelectorFromString(@"colorWithString:");
+        if ([UIColor respondsToSelector:selector])
+        {
+            textColor = objc_msgSend([UIColor class], selector, textColor);
+        }
+        else
+        {
+            [NSException raise:@"HTMLLabelError" format:@"Setting a color by string requires the ColorUtils library to be included in your project. Get it from here: https://github.com/nicklockwood/ColorUtils"];
+        }
+    }
+    return textColor;
+}
+
+- (CGFloat)textSize
+{
+    return [_styles[HTMLTextSize] floatValue] ?: [_styles[HTMLFont] pointSize];
+}
+
+- (BOOL)isBold
+{
+    return [_styles[HTMLBold] boolValue];
+}
+
+- (BOOL)isItalic
+{
+    return [_styles[HTMLItalic] boolValue];
+}
+
+- (BOOL)isUnderlined
+{
+    return [_styles[HTMLUnderline] boolValue];
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    return self;
+}
+
+- (NSDictionary *)dictionaryRepresentation
+{
+    return [_styles copy];
+}
+
+- (HTMLStyles *)stylesByAddingStylesFromDictionary:(NSDictionary *)dict
+{
+    NSMutableDictionary *result = [NSMutableDictionary dictionaryWithDictionary:_styles];
+    [result addEntriesFromDictionary:dict];
+    return [[HTMLStyles alloc] initWithDictionary:result];
+}
+
+- (HTMLStyles *)stylesByAddingStyles:(HTMLStyles *)styles
+{
+    return [self stylesByAddingStylesFromDictionary:[styles dictionaryRepresentation]];
+}
+
+- (NSString *)description
+{
+    return [[self dictionaryRepresentation] description];
+}
+
+@end
+
+
+@interface HTMLStyleSelector : NSObject <NSCopying>
+
+@property (nonatomic, copy, readonly) NSString *tag;
+@property (nonatomic, copy, readonly) NSArray *classNames;
+
+- (id)initWithString:(NSString *)selectorString;
+- (NSString *)stringRepresentation;
+- (BOOL)matchesTokenAttributes:(HTMLTokenAttributes *)attributes;
+
+@end
+
+
+@interface HTMLStyleSelector ()
+
+@property (nonatomic, copy) NSString *selectorString;
+
+@end
+
+
+@implementation HTMLStyleSelector
+
+- (id)initWithString:(NSString *)selectorString
+{
+    if ((self = [super init]))
+    {
+        _selectorString = selectorString;
+        NSArray *parts = [selectorString componentsSeparatedByString:@"."];
+        NSInteger count = [parts count];
+        if (count > 0)
+        {
+            _tag = parts[0];
+            if (count > 1)
+            {
+                _classNames = [parts subarrayWithRange:NSMakeRange(1, count - 1)];
+            }
+        }
+        //TODO: more
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    return self;
+}
+
+- (NSString *)stringRepresentation
+{
+    return _selectorString;
+}
+
+- (NSString *)description
+{
+    return [self stringRepresentation];
+}
+
+- (NSUInteger)hash
+{
+    return [[self stringRepresentation] hash];
+}
+
+- (BOOL)isEqual:(id)object
+{
+    if ([object isKindOfClass:[HTMLStyleSelector class]])
+    {
+        return [[self stringRepresentation] isEqualToString:[object stringRepresentation]];
+    }
+    else if ([object isKindOfClass:[NSString class]])
+    {
+        return [[self stringRepresentation] isEqualToString:object];
+    }
+    return NO;
+}
+
+- (BOOL)matchesTokenAttributes:(HTMLTokenAttributes *)attributes
+{
+    //check tag
+    if (![_tag length] || [_tag isEqualToString:@"*"] || [attributes.tag isEqualToString:_tag])
+    {
+        //check classes
+        for (NSString *className in _classNames)
+        {
+            if (![attributes.classNames containsObject:className])
+            {
+                return NO;
+            }
+        }
+        return YES;
+    }
+    return NO;
+}
+
+@end
+
+
+@interface HTMLStylesheet ()
+
+@property (nonatomic, copy) NSArray *selectors;
+@property (nonatomic, copy) NSDictionary *stylesBySelector;
+
+- (NSDictionary *)dictionaryRepresentation;
+- (HTMLStyles *)stylesForToken:(HTMLToken *)token;
+
+@end
+
+
+@implementation HTMLStylesheet
+
++ (HTMLStylesheet *)defaultStylesheet
+{
+    static HTMLStylesheet *defaultStylesheet = nil;
+    if (defaultStylesheet == nil)
+    {
+        NSDictionary *styles = @{
+        @"html": @{HTMLTextColor: [UIColor blackColor], HTMLFont:[UIFont systemFontOfSize:17.0f]},
+        @"a": @{HTMLTextColor: [UIColor blueColor], HTMLUnderline: @YES},
+        @"b,strong,h1,h2,h3,h4,h5,h6": @{HTMLBold: @YES},
+        @"i,em": @{HTMLItalic: @YES}
+        };
+        defaultStylesheet = [[HTMLStylesheet alloc] initWithDictionary:styles];
+    }
+    return defaultStylesheet;
+}
+
+- (void)addStylesFromDictionary:(NSDictionary *)dictionary
+{
+    for (NSString *key in dictionary)
+    {
+        [self addStyles:dictionary[key] forSelector:key];
+    }
+}
+
+- (void)addStyles:(id)styles forSelector:(id)selector
+{
+    if ([selector isKindOfClass:[NSString class]])
+    {
+        NSArray *selectors = [selector componentsSeparatedByString:@","];
+        if ([selectors count] > 1)
+        {
+            for (NSString *selector in selectors)
+            {
+                [self addStyles:styles forSelector:selector];
+            }
+            return;
+        }
+        selector = [[HTMLStyleSelector alloc] initWithString:selector];
+    }
+    HTMLStyles *existingStyles = [_stylesBySelector objectForKey:selector];
+    if (existingStyles)
+    {
+        if (![styles isKindOfClass:[NSDictionary class]])
+        {
+            styles = [existingStyles stylesByAddingStyles:styles];
+        }
+        else
+        {
+            styles = [existingStyles stylesByAddingStylesFromDictionary:styles];
+        }
+    }
+    else
+    {
+        [(NSMutableArray *)_selectors addObject:selector];
+        if ([styles isKindOfClass:[NSDictionary class]])
+        {
+            styles = [[HTMLStyles alloc] initWithDictionary:styles];
+        }
+    }
+    [(NSMutableDictionary *)_stylesBySelector setObject:styles forKey:selector];
+}
+
+- (id)initWithDictionary:(NSDictionary *)dictionary
+{
+    if ((self = [super init]))
+    {
+        _selectors = [NSMutableArray array];
+        _stylesBySelector = [NSMutableDictionary dictionary];
+        [self addStylesFromDictionary:dictionary];
+    }
+    return self;
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+    return self;
+}
+
+- (NSDictionary *)dictionaryRepresentation
+{
+    NSMutableDictionary *stylesheet = [NSMutableDictionary dictionary];
+    for (HTMLStyleSelector *selector in _selectors)
+    {
+        HTMLStyles *styles = [self stylesForSelector:selector];
+        [stylesheet setObject:[styles dictionaryRepresentation]
+                       forKey:[selector stringRepresentation]];
+    }
+    return stylesheet;
+}
+
+- (HTMLStylesheet *)stylesheetByaddingStyles:(NSDictionary *)styles forSelector:(NSString *)selector
+{
+    HTMLStylesheet *stylesheet = [[HTMLStylesheet alloc] initWithDictionary:[self dictionaryRepresentation]];
+    [stylesheet addStyles:styles forSelector:selector];
+    return stylesheet;
+}
+
+- (HTMLStylesheet *)stylesheetByaddingStylesFromDictionary:(NSDictionary *)dictionary
+{
+    HTMLStylesheet *stylesheet = [[HTMLStylesheet alloc] initWithDictionary:[self dictionaryRepresentation]];
+    [stylesheet addStylesFromDictionary:dictionary];
+    return stylesheet;
+}
+
+- (HTMLStylesheet *)stylesheetByaddingStyles:(HTMLStylesheet *)styles
+{
+    HTMLStylesheet *stylesheet = [[HTMLStylesheet alloc] initWithDictionary:[self dictionaryRepresentation]];
+    [stylesheet addStylesFromDictionary:[styles dictionaryRepresentation]];
+    return stylesheet;
+}
+
+- (HTMLStyles *)stylesForSelector:(id)selector
+{
+    return [_stylesBySelector objectForKey:selector];
+}
+
+- (HTMLStyles *)stylesForToken:(HTMLToken *)token
+{
+    HTMLStyles *allStyles = nil;
+    HTMLTokenAttributes *attributes = token.attributes;
+    while (attributes)
+    {
+        HTMLStyles *styles = [[HTMLStyles alloc] init];
+        for (HTMLStyleSelector *selector in _selectors)
+        {
+            if ([selector matchesTokenAttributes:attributes])
+            {
+                styles = [styles stylesByAddingStyles:[self stylesForSelector:selector]];
+            }
+        }
+        allStyles = [styles stylesByAddingStyles:allStyles];
+        attributes = attributes.parent;
+    }
+    return allStyles;
+}
+
+- (NSString *)description
+{
+    return [[self dictionaryRepresentation] description];
+}
+
+@end
+
+
+#pragma mark -
+#pragma mark HTML parsing
+
+
+@implementation HTMLTokenAttributes
+
+- (id)mutableCopyWithZone:(NSZone *)zone
+{
+    HTMLTokenAttributes *copy = [[HTMLTokenAttributes alloc] init];
+    copy.href = _href;
+    copy.tag = _tag;
+    copy.classNames = _classNames;
+    copy.list = _list;
+    copy.listLevel = _listLevel;
+    copy.nextListIndex = _nextListIndex;
+    return copy;
+}
 
 @end
 
@@ -178,49 +566,25 @@
     return [self isSpace] || [self isLinebreak] || [_text isEqualToString:@"\u00A0"] || _attributes.bullet;
 }
 
-- (UIFont *)fontForStyles:(NSDictionary *)styles
+- (void)drawInRect:(CGRect)rect withStyles:(HTMLStyles *)styles
 {
-    UIFont *font = styles[HTMLFont];
-    if (_attributes.bold)
-    {
-        if (_attributes.italic)
-        {
-            font = [font boldItalicFontOfSize:font.pointSize];
-        }
-        else
-        {
-            font = [font boldFontOfSize:font.pointSize];
-        }
-    }
-    else if (_attributes.italic)
-    {
-        font = [font italicFontOfSize:font.pointSize];
-    }
-    return font;
-}
-
-- (void)drawInRect:(CGRect)rect withStyles:(NSDictionary *)styles
-{
-    //select color
-    [_attributes.href? styles[HTMLLinkColor]: styles[HTMLTextColor] setFill];
-    
-    //select font
-    UIFont *font = [self fontForStyles:styles];
+    //set color
+    [styles.textColor setFill];
     
     //draw text
-    [_text drawInRect:rect withFont:font];
+    [_text drawInRect:rect withFont:styles.font];
     
     //underline?
-    if (_attributes.href? [styles[HTMLUnderlineLinks] boolValue]: _attributes.underlined)
+    if (styles.underline)
     {
         CGContextRef c = UIGraphicsGetCurrentContext();
-        CGContextFillRect(c, CGRectMake(rect.origin.x, rect.origin.y + font.pointSize + 1.0f, rect.size.width, 1.0f));
+        CGContextFillRect(c, CGRectMake(rect.origin.x, rect.origin.y + styles.font.pointSize + 1.0f, rect.size.width, 1.0f));
     }
 }
 
-- (CGSize)sizeWithStyles:(NSDictionary *)styles
+- (CGSize)sizeWithStyles:(HTMLStyles *)styles
 {
-    return [_text sizeWithFont:[self fontForStyles:styles]];
+    return [_text sizeWithFont:styles.font];
 }
 
 - (NSString *)description
@@ -386,28 +750,18 @@
 	[self endText];
     
     HTMLTokenAttributes *attributes = [[_stack lastObject] mutableCopy] ?: [[HTMLTokenAttributes alloc] init];
+    attributes.parent = [_stack lastObject];
     elementName = [elementName lowercaseString];
+    attributes.tag = elementName;
+    attributes.classNames = [attributeDict[@"class"] componentsSeparatedByString:@" "];
+    
     if ([elementName isEqualToString:@"a"])
     {
         attributes.href = attributeDict[@"href"];
     }
-    else if ([elementName isEqualToString:@"b"] || [elementName isEqualToString:@"strong"])
-    {
-        attributes.bold = YES;
-    }
-    else if ([elementName isEqualToString:@"i"] || [elementName isEqualToString:@"em"])
-    {
-        attributes.italic = YES;
-    }
-    else if ([elementName isEqualToString:@"u"])
-    {
-        attributes.underlined = YES;
-    }
     else if ([elementName rangeOfString:@"^h\\d$" options:NSRegularExpressionSearch].length == [elementName length])
     {
         [self addLinebreaks:2];
-        
-        attributes.bold = YES;
     }
     else if ([elementName isEqualToString:@"p"] || [elementName isEqualToString:@"div"])
     {
@@ -436,6 +790,7 @@
         //add list bullet
         HTMLToken *token = [[HTMLToken alloc] init];
         token.attributes = [[_stack lastObject] mutableCopy];
+        token.attributes.parent = [_stack lastObject];
         token.attributes.bullet = YES;
         token.text = bullet;
         [_tokens addObject:token];
@@ -510,10 +865,10 @@
 #pragma mark HTML layout
 
 
-@interface HTMLTokenLayout : NSObject
+@interface HTMLLayout : NSObject
 
 @property (nonatomic, copy) NSArray *tokens;
-@property (nonatomic, copy) NSDictionary *styles;
+@property (nonatomic, copy) HTMLStylesheet *stylesheet;
 @property (nonatomic, assign) CGFloat maxWidth;
 
 //generated properties
@@ -527,7 +882,23 @@
 @end
 
 
-@implementation HTMLTokenLayout
+@interface HTMLLayout ()
+
+@property (nonatomic, assign) CGSize size;
+
+@end
+
+
+@implementation HTMLLayout
+
+- (id)init
+{
+    if ((self = [super init]))
+    {
+        _stylesheet = [HTMLStylesheet defaultStylesheet];
+    }
+    return self;
+}
 
 - (void)setTokens:(NSArray *)tokens
 {
@@ -535,9 +906,9 @@
     [self setNeedsUpdate];
 }
 
-- (void)setStyles:(NSDictionary *)styles
+- (void)setStylesheet:(HTMLStylesheet *)stylesheet
 {
-    _styles = [styles copy];
+    _stylesheet = [[HTMLStylesheet defaultStylesheet] stylesheetByaddingStyles:stylesheet];
     [self setNeedsUpdate];
 }
 
@@ -557,10 +928,6 @@
     _frames = [[NSMutableArray alloc] init];
     _size = CGSizeZero;
     
-    CGFloat oneEm = [@"m" sizeWithFont:_styles[HTMLFont]].width;
-    CGFloat indent = oneEm * 3;
-    CGFloat padding = oneEm;
-
     CGPoint position = CGPointZero;
     CGFloat lineHeight = 0.0f;
     BOOL newLine = YES;
@@ -568,7 +935,13 @@
     for (int i = 0; i < [_tokens count]; i++)
     {
         HTMLToken *token = _tokens[i];
-        CGSize size = [token sizeWithStyles:_styles];
+        HTMLStyles *styles = [_stylesheet stylesForToken:token];
+        
+        CGFloat oneEm = [@"m" sizeWithFont:styles.font].width;
+        CGFloat indent = oneEm * 3;
+        CGFloat padding = oneEm;
+        
+        CGSize size = [token sizeWithStyles:styles];
         if ([token isLinebreak])
         {
             //newline
@@ -625,7 +998,6 @@
                     //new line
                     position = CGPointMake(token.attributes.listLevel * indent, position.y + lineHeight);
                     lineHeight = 0.0f;
-                    newLine = YES;
                 }
                 else
                 {
@@ -655,11 +1027,17 @@
             _size.width = MAX(_size.width, position.x + size.width);
             
             //prepare for next frame
-            position.x += size.width;
             lineHeight = MAX(lineHeight, size.height);
+            position.x += size.width;
             newLine = NO;
         }
     }
+}
+
+- (CGSize)size
+{
+    if (!_frames) [self update];
+    return _size;
 }
 
 - (void)drawAtPoint:(CGPoint)point
@@ -669,12 +1047,13 @@
     {
         CGRect frame = [_frames[i] CGRectValue];
         HTMLToken *token = _tokens[i];
-        [token drawInRect:frame withStyles:_styles];
+        [token drawInRect:frame withStyles:[_stylesheet stylesForToken:token]];
     }
 }
 
 - (HTMLToken *)tokenAtPosition:(CGPoint)point
 {
+    if (!_frames) [self update];
     for (int i = 0; i < [_tokens count]; i++)
     {
         if (CGRectContainsPoint([_frames[i] CGRectValue], point))
@@ -690,24 +1069,22 @@
 
 @implementation NSString (HTMLRendering)
 
-- (CGSize)sizeWithHtmlStyles:(NSDictionary *)styles forWidth:(CGFloat)width
+- (CGSize)sizeWithHtmlStylesheet:(HTMLStylesheet *)stylesheet forWidth:(CGFloat)width
 {
     HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] initWithHTML:self];
-    HTMLTokenLayout *layout = [[HTMLTokenLayout alloc] init];
+    HTMLLayout *layout = [[HTMLLayout alloc] init];
     layout.tokens = tokenizer.tokens;
-    layout.styles = styles;
+    layout.stylesheet = stylesheet;
     layout.maxWidth = width;
-    [layout update];
-    
     return layout.size;
 }
 
-- (void)drawHtmlInRect:(CGRect)rect withHtmlStyles:(NSDictionary *)styles
+- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(HTMLStylesheet *)stylesheet
 {
     HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] init];
-    HTMLTokenLayout *layout = [[HTMLTokenLayout alloc] init];
+    HTMLLayout *layout = [[HTMLLayout alloc] init];
     layout.tokens = tokenizer.tokens;
-    layout.styles = styles;
+    layout.stylesheet = stylesheet;
     layout.maxWidth = rect.size.width;
     
     //TODO: crop to correct height
@@ -723,7 +1100,7 @@
 
 @interface HTMLLabel () <UIGestureRecognizerDelegate>
 
-@property (nonatomic, strong) HTMLTokenLayout *layout;
+@property (nonatomic, strong) HTMLLayout *layout;
 
 @end
 
@@ -732,9 +1109,11 @@
 
 - (void)setUp
 {
-    _layout = [[HTMLTokenLayout alloc] init];
-    _underlineLinks = YES;
-    
+    _layout = [[HTMLLayout alloc] init];
+    _stylesheet = [[HTMLStylesheet alloc] init];
+    self.font = self.font;
+    self.textColor = self.textColor;
+
     UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)];
     tapGesture.numberOfTapsRequired = 1;
     tapGesture.numberOfTouchesRequired = 1;
@@ -779,44 +1158,35 @@
 - (void)setFont:(UIFont *)font
 {
     super.font = font;
-    [self setNeedsDisplay];
+    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLFont: font} forSelector:@"html"];
 }
 
-- (void)setLinkColor:(UIColor *)linkColor
+- (void)setTextColor:(UIColor *)textColor
 {
-    _linkColor = linkColor;
-    [self setNeedsDisplay];
+    super.textColor = textColor;
+    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLTextColor: textColor} forSelector:@"html"];
 }
 
-- (void)setUnderlineLinks:(BOOL)underlineLinks
+- (void)setStylesheet:(HTMLStylesheet *)stylesheet
 {
-    _underlineLinks = underlineLinks;
+    _stylesheet = [stylesheet copy] ?: [[HTMLStylesheet alloc] init];
+    _layout.stylesheet = _stylesheet;
+    
+    HTMLStyles *styles = [_layout.stylesheet stylesForSelector:@"html"];
+    super.font = styles.font ?: self.font;
+    super.textColor = styles.textColor ?: self.textColor;
     [self setNeedsDisplay];
-}
-
-- (NSDictionary *)htmlStyles
-{
-    return @{
-HTMLFont: self.font,
-HTMLTextColor: self.textColor ?: [UIColor blackColor],
-HTMLLinkColor: _linkColor ?: [UIColor blueColor],
-HTMLUnderlineLinks: @(_underlineLinks)
-    };
 }
 
 - (CGSize)sizeThatFits:(CGSize)size
 {
     _layout.maxWidth = size.width;
-    _layout.styles = [self htmlStyles];
-    [_layout update];
-    
     return _layout.size;
 }
 
 - (void)drawRect:(CGRect)rect
 {
     _layout.maxWidth = self.bounds.size.width;
-    _layout.styles = [self htmlStyles];
     [_layout drawAtPoint:CGPointZero];
 }
 

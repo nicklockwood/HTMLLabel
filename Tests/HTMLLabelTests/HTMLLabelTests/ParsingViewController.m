@@ -40,13 +40,14 @@
 
 - (IBAction)selectInput
 {
-    [[[UIActionSheet alloc] initWithTitle:@"Select input" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:@"Delete all input" otherButtonTitles:@"Lorem ipsum", @"Ordered list", @"Unordered list", @"Naked list", @"Links", @"Broken tags", nil] showInView:self.view];
+    [[[UIActionSheet alloc] initWithTitle:@"Select input" delegate:self cancelButtonTitle:@"Cancel" destructiveButtonTitle:@"Delete all input" otherButtonTitles:@"Lorem ipsum", @"Ordered list", @"Unordered list", @"Naked list", @"Links", @"Broken tags", @"Styles", nil] showInView:self.view];
 }
 
 - (void)actionSheet:(UIActionSheet *)actionSheet didDismissWithButtonIndex:(NSInteger)buttonIndex
 {
     if (buttonIndex != actionSheet.cancelButtonIndex)
     {
+        _outputField.stylesheet = nil;
         if (buttonIndex == actionSheet.destructiveButtonIndex)
         {
             _inputField.text = nil;
@@ -83,6 +84,18 @@
                 case 6:
                 {
                     _inputField.text = @"Lorem >ipsum dolor sit < er elit lamet, consectetaur cillium adipisicing pecu, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.";
+                    break;
+                }
+                case 7:
+                {
+                    NSDictionary *styles = @{
+                    @"html": @{HTMLTextSize: @30},
+                    @"a": @{HTMLFont: @"Georgia", HTMLTextColor: [UIColor redColor]},
+                    @".green": @{HTMLTextColor: [UIColor greenColor], HTMLBold: @YES}
+                    };
+                    
+                    _outputField.stylesheet = [[HTMLStylesheet alloc] initWithDictionary:styles];
+                    _inputField.text = @"Lorem <a href=\"foo\">ipsum dolor sit er elit</a> lamet, consectetaur cillium adipisicing pecu, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. <b>Ut enim</b> ad minim veniam, <span class=\"green\">quis nostrud</span> exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Nam liber te conscient to factor tum poen legum odioque civiuda.";
                     break;
                 }
                 default:

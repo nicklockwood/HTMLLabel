@@ -33,10 +33,21 @@
 #import <UIKit/UIKit.h>
 
 
+#import <Availability.h>
+#undef weak_delegate
+#if __has_feature(objc_arc_weak)
+#define weak_delegate weak
+#else
+#define weak_delegate unsafe_unretained
+#endif
+
+
+static NSString *const HTMLBold = @"bold";
+static NSString *const HTMLItalic = @"italic";
+static NSString *const HTMLUnderline = @"underline";
 static NSString *const HTMLFont = @"font";
+static NSString *const HTMLTextSize = @"textSize";
 static NSString *const HTMLTextColor = @"textColor";
-static NSString *const HTMLLinkColor = @"linkColor";
-static NSString *const HTMLUnderlineLinks = @"underlineLinks";
 
 
 @interface UIFont (Variants)
@@ -48,10 +59,19 @@ static NSString *const HTMLUnderlineLinks = @"underlineLinks";
 @end
 
 
+@interface HTMLStylesheet : NSObject <NSCopying>
+
+- (id)initWithDictionary:(NSDictionary *)dictionary;
+- (HTMLStylesheet *)stylesheetByaddingStyles:(NSDictionary *)styles forSelector:(NSString *)selector;
+- (HTMLStylesheet *)stylesheetByaddingStylesFromDictionary:(NSDictionary *)dictionary;
+
+@end
+
+
 @interface NSString (HTMLRendering)
 
-- (CGSize)sizeWithHtmlStyles:(NSDictionary *)styles forWidth:(CGFloat)width;
-- (void)drawHtmlInRect:(CGRect)rect withHtmlStyles:(NSDictionary *)styles;
+- (CGSize)sizeWithHtmlStylesheet:(HTMLStylesheet *)stylesheet forWidth:(CGFloat)width;
+- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(HTMLStylesheet *)stylesheet;
 
 @end
 
@@ -70,10 +90,7 @@ static NSString *const HTMLUnderlineLinks = @"underlineLinks";
 
 @interface HTMLLabel : UILabel
 
-@property (nonatomic, weak) IBOutlet id<HTMLLabelDelegate> delegate;
-@property (nonatomic, strong) UIColor *linkColor;
-@property (nonatomic, assign) BOOL underlineLinks;
-
-- (NSDictionary *)htmlStyles;
+@property (nonatomic, weak_delegate) IBOutlet id<HTMLLabelDelegate> delegate;
+@property (nonatomic, copy) HTMLStylesheet *stylesheet;
 
 @end
