@@ -205,6 +205,10 @@
     {
         font = [font italicFontOfSize:pointSize];
     }
+    else
+    {
+        font = [font fontWithSize:pointSize];
+    }
     return font;
 }
 
@@ -1109,10 +1113,9 @@
 
 - (void)setUp
 {
-    _layout = [[HTMLLayout alloc] init];
     _stylesheet = [[HTMLStylesheet alloc] init];
-    self.font = self.font;
-    self.textColor = self.textColor;
+    _layout = [[HTMLLayout alloc] init];
+    self.stylesheet = nil;
 
     UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)];
     tapGesture.numberOfTapsRequired = 1;
@@ -1157,21 +1160,23 @@
 
 - (void)setFont:(UIFont *)font
 {
-    super.font = font;
-    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLFont: font} forSelector:@"html"];
+    super.font = font ?: [UIFont systemFontOfSize:17.0f];
+    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLFont: self.font} forSelector:@"html"];
 }
 
 - (void)setTextColor:(UIColor *)textColor
 {
-    super.textColor = textColor;
-    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLTextColor: textColor} forSelector:@"html"];
+    super.textColor = textColor ?: [UIColor blackColor];
+    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLTextColor: self.textColor} forSelector:@"html"];
 }
 
 - (void)setStylesheet:(HTMLStylesheet *)stylesheet
 {
-    _stylesheet = [stylesheet copy] ?: [[HTMLStylesheet alloc] init];
+    _stylesheet = [[[HTMLStylesheet alloc] initWithDictionary:@{@"html": @{
+                                                    HTMLFont: self.font,
+                                                HTMLTextColor: self.textColor}}] stylesheetByaddingStyles:stylesheet];
     _layout.stylesheet = _stylesheet;
-    
+
     HTMLStyles *styles = [_layout.stylesheet stylesForSelector:@"html"];
     super.font = styles.font ?: self.font;
     super.textColor = styles.textColor ?: self.textColor;
