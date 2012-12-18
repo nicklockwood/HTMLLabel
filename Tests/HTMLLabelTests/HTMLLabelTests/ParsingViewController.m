@@ -89,7 +89,7 @@
                 case 7:
                 {
                     NSDictionary *styles = @{
-                    @"html": @{HTMLTextSize: @30},
+                    @"html": @{HTMLTextSize: @20},
                     @"a": @{HTMLFont: @"Georgia", HTMLTextColor: [UIColor redColor]},
                     @".green": @{HTMLTextColor: [UIColor greenColor], HTMLBold: @YES}
                     };

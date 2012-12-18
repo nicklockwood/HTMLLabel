@@ -119,6 +119,7 @@
 @property (nonatomic, copy) NSString *tag;
 @property (nonatomic, copy) NSArray *classNames;
 @property (nonatomic, strong) HTMLTokenAttributes *parent;
+@property (nonatomic, assign) BOOL active;
 @property (nonatomic, assign) BOOL list;
 @property (nonatomic, assign) BOOL bullet;
 @property (nonatomic, assign) NSInteger listLevel;
@@ -284,6 +285,7 @@
 
 @property (nonatomic, copy, readonly) NSString *tag;
 @property (nonatomic, copy, readonly) NSArray *classNames;
+@property (nonatomic, copy, readonly) NSArray *pseudoSelectors;
 
 - (id)initWithString:(NSString *)selectorString;
 - (NSString *)stringRepresentation;
@@ -306,8 +308,22 @@
     if ((self = [super init]))
     {
         _selectorString = selectorString;
-        NSArray *parts = [selectorString componentsSeparatedByString:@"."];
+        
+        //parse pseudo selectors
+        NSArray *parts = [selectorString componentsSeparatedByString:@":"];
         NSInteger count = [parts count];
+        if (count > 0)
+        {
+            selectorString = parts[0];
+            if (count > 1)
+            {
+                _pseudoSelectors = [parts subarrayWithRange:NSMakeRange(1, count - 1)];
+            }
+        }
+        
+        //parse class names
+        parts = [selectorString componentsSeparatedByString:@"."];
+        count = [parts count];
         if (count > 0)
         {
             _tag = parts[0];
@@ -316,6 +332,7 @@
                 _classNames = [parts subarrayWithRange:NSMakeRange(1, count - 1)];
             }
         }
+        
         //TODO: more
     }
     return self;
@@ -367,6 +384,13 @@
                 return NO;
             }
         }
+        for (NSString *pseudo in _pseudoSelectors)
+        {
+            if ([pseudo isEqualToString:@"active"] && !attributes.active)
+            {
+                return NO;
+            }
+        }
         return YES;
     }
     return NO;
@@ -396,6 +420,7 @@
         NSDictionary *styles = @{
         @"html": @{HTMLTextColor: [UIColor blackColor], HTMLFont:[UIFont systemFontOfSize:17.0f]},
         @"a": @{HTMLTextColor: [UIColor blueColor], HTMLUnderline: @YES},
+        @"a:active": @{HTMLTextColor: [UIColor redColor]},
         @"b,strong,h1,h2,h3,h4,h5,h6": @{HTMLBold: @YES},
         @"i,em": @{HTMLItalic: @YES}
         };
@@ -1102,7 +1127,7 @@
 #pragma mark HTML label
 
 
-@interface HTMLLabel () <UIGestureRecognizerDelegate>
+@interface HTMLLabel ()
 
 @property (nonatomic, strong) HTMLLayout *layout;
 
@@ -1117,12 +1142,6 @@
     _layout = [[HTMLLayout alloc] init];
     self.stylesheet = nil;
 
-    UITapGestureRecognizer *tapGesture = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)];
-    tapGesture.numberOfTapsRequired = 1;
-    tapGesture.numberOfTouchesRequired = 1;
-    tapGesture.delegate = self;
-    [self addGestureRecognizer:tapGesture];
-    
     HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] initWithHTML:self.text];
     _layout.tokens = tokenizer.tokens;
     [self setNeedsDisplay];
@@ -1195,39 +1214,41 @@
     [_layout drawAtPoint:CGPointZero];
 }
 
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldRecognizeSimultaneouslyWithGestureRecognizer:(UIGestureRecognizer *)otherGestureRecognizer
+- (void)touchesBegan:(NSSet *)touches withEvent:(UIEvent *)event
 {
-    //play nice with others
-    return YES;
+    UITouch *touch = [touches anyObject];
+    [_layout tokenAtPosition:[touch locationInView:self]].attributes.active = YES;
+    [self setNeedsDisplay];
 }
 
-- (BOOL)gestureRecognizer:(UIGestureRecognizer *)gestureRecognizer shouldReceiveTouch:(UITouch *)touch
+- (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
 {
-    //only recognize touches on links
-    return [_layout tokenAtPosition:[touch locationInView:self]].attributes.href ? YES: NO;
-}
-
-- (void)tapped:(UITapGestureRecognizer *)gesture
-{
-    if (gesture.state == UIGestureRecognizerStateRecognized)
+    [[_layout valueForKeyPath:@"tokens.attributes"] makeObjectsPerformSelector:@selector(setActive:) withObject:0];
+    [self setNeedsDisplay];
+    
+    UITouch *touch = [touches anyObject];
+    HTMLToken *token = [_layout tokenAtPosition:[touch locationInView:self]];
+    if (token.attributes.href)
     {
-        HTMLToken *token = [_layout tokenAtPosition:[gesture locationInView:self]];
-        if (token.attributes.href)
+        NSURL *URL = [NSURL URLWithString:token.attributes.href];
+        if ([_delegate respondsToSelector:@selector(HTMLLabel:tappedLinkWithURL:bounds:)])
         {
-            NSURL *URL = [NSURL URLWithString:token.attributes.href];
-            if ([_delegate respondsToSelector:@selector(HTMLLabel:tappedLinkWithURL:bounds:)])
-            {
-                CGRect frame = [_layout.frames[[_layout.tokens indexOfObject:token]] CGRectValue];
-                [_delegate HTMLLabel:self tappedLinkWithURL:URL bounds:frame];
-            }
-            BOOL openURL = YES;
-            if ([_delegate respondsToSelector:@selector(HTMLLabel:shouldOpenURL:)])
-            {
-                openURL = [_delegate HTMLLabel:self shouldOpenURL:URL];
-            }
-            if (openURL) [[UIApplication sharedApplication] openURL:URL];
+            CGRect frame = [_layout.frames[[_layout.tokens indexOfObject:token]] CGRectValue];
+            [_delegate HTMLLabel:self tappedLinkWithURL:URL bounds:frame];
         }
+        BOOL openURL = YES;
+        if ([_delegate respondsToSelector:@selector(HTMLLabel:shouldOpenURL:)])
+        {
+            openURL = [_delegate HTMLLabel:self shouldOpenURL:URL];
+        }
+        if (openURL) [[UIApplication sharedApplication] openURL:URL];
     }
+}
+
+- (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
+{
+    [[_layout valueForKeyPath:@"tokens.attributes"] makeObjectsPerformSelector:@selector(setActive:) withObject:0];
+    [self setNeedsDisplay];
 }
 
 @end
