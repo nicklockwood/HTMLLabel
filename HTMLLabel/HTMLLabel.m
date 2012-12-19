@@ -1179,21 +1179,21 @@
 
 - (void)setFont:(UIFont *)font
 {
-    super.font = font ?: [UIFont systemFontOfSize:17.0f];
-    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLFont: self.font} forSelector:@"html"];
+    super.font = font;
+    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f]} forSelector:@"html"];
 }
 
 - (void)setTextColor:(UIColor *)textColor
 {
-    super.textColor = textColor ?: [UIColor blackColor];
-    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLTextColor: self.textColor} forSelector:@"html"];
+    super.textColor = textColor;
+    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLTextColor: self.textColor ?: [UIColor blackColor]} forSelector:@"html"];
 }
 
 - (void)setStylesheet:(HTMLStylesheet *)stylesheet
 {
     _stylesheet = [[[HTMLStylesheet alloc] initWithDictionary:@{@"html": @{
-                                                    HTMLFont: self.font,
-                                                HTMLTextColor: self.textColor}}] stylesheetByaddingStyles:stylesheet];
+                                                    HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f],
+                                                HTMLTextColor: self.textColor ?: [UIColor blackColor]}}] stylesheetByaddingStyles:stylesheet];
     _layout.stylesheet = _stylesheet;
 
     HTMLStyles *styles = [_layout.stylesheet stylesForSelector:@"html"];
