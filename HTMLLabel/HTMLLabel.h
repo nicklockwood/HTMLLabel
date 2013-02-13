@@ -59,19 +59,10 @@ static NSString *const HTMLTextColor = @"textColor";
 @end
 
 
-@interface HTMLStylesheet : NSObject <NSCopying>
-
-- (id)initWithDictionary:(NSDictionary *)dictionary;
-- (HTMLStylesheet *)stylesheetByaddingStyles:(NSDictionary *)styles forSelector:(NSString *)selector;
-- (HTMLStylesheet *)stylesheetByaddingStylesFromDictionary:(NSDictionary *)dictionary;
-
-@end
-
-
 @interface NSString (HTMLRendering)
 
-- (CGSize)sizeWithHtmlStylesheet:(HTMLStylesheet *)stylesheet forWidth:(CGFloat)width;
-- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(HTMLStylesheet *)stylesheet;
+- (CGSize)sizeWithHtmlStylesheet:(NSDictionary *)stylesheet forWidth:(CGFloat)width;
+- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(NSDictionary *)stylesheet;
 
 @end
 
@@ -91,6 +82,6 @@ static NSString *const HTMLTextColor = @"textColor";
 @interface HTMLLabel : UILabel
 
 @property (nonatomic, weak_delegate) IBOutlet id<HTMLLabelDelegate> delegate;
-@property (nonatomic, copy) HTMLStylesheet *stylesheet;
+@property (nonatomic, copy) NSDictionary *stylesheet;
 
 @end

@@ -18,7 +18,7 @@
 		01B8897D165A9D6B0048C30E /* Default-568h@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 01B8897C165A9D6B0048C30E /* Default-568h@2x.png */; };
 		01B88980165A9D6B0048C30E /* ParsingViewController.m in Sources */ = {isa = PBXBuildFile; fileRef = 01B8897F165A9D6B0048C30E /* ParsingViewController.m */; };
 		01B8898E165A9D6B0048C30E /* ParsingViewController.xib in Resources */ = {isa = PBXBuildFile; fileRef = 01B8898C165A9D6B0048C30E /* ParsingViewController.xib */; };
-		01B8899C165AA4A60048C30E /* HTMLLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 01B8899B165AA4A60048C30E /* HTMLLabel.m */; };
+		01DCA0B416CC31E400675C86 /* HTMLLabel.m in Sources */ = {isa = PBXBuildFile; fileRef = 01DCA0B316CC31E400675C86 /* HTMLLabel.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,8 +38,8 @@
 		01B8897E165A9D6B0048C30E /* ParsingViewController.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ParsingViewController.h; sourceTree = "<group>"; };
 		01B8897F165A9D6B0048C30E /* ParsingViewController.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ParsingViewController.m; sourceTree = "<group>"; };
 		01B8898D165A9D6B0048C30E /* en */ = {isa = PBXFileReference; lastKnownFileType = file.xib; name = en; path = en.lproj/ParsingViewController.xib; sourceTree = "<group>"; };
-		01B8899A165AA4A60048C30E /* HTMLLabel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HTMLLabel.h; sourceTree = "<group>"; };
-		01B8899B165AA4A60048C30E /* HTMLLabel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HTMLLabel.m; sourceTree = "<group>"; };
+		01DCA0B216CC31E400675C86 /* HTMLLabel.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = HTMLLabel.h; sourceTree = "<group>"; };
+		01DCA0B316CC31E400675C86 /* HTMLLabel.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = HTMLLabel.m; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,6 +59,7 @@
 		01B88957165A9D6B0048C30E = {
 			isa = PBXGroup;
 			children = (
+				01DCA0B116CC31E400675C86 /* HTMLLabel */,
 				01B8896C165A9D6B0048C30E /* HTMLLabelTests */,
 				01B88965165A9D6B0048C30E /* Frameworks */,
 				01B88963165A9D6B0048C30E /* Products */,
@@ -86,7 +87,6 @@
 		01B8896C165A9D6B0048C30E /* HTMLLabelTests */ = {
 			isa = PBXGroup;
 			children = (
-				01B88999165AA4A60048C30E /* HTMLLabel */,
 				01B88998165AA2BB0048C30E /* Nibs */,
 				01B88997165AA2AA0048C30E /* Controllers */,
 				01B8896D165A9D6B0048C30E /* Supporting Files */,
@@ -127,14 +127,14 @@
 			name = Nibs;
 			sourceTree = "<group>";
 		};
-		01B88999165AA4A60048C30E /* HTMLLabel */ = {
+		01DCA0B116CC31E400675C86 /* HTMLLabel */ = {
 			isa = PBXGroup;
 			children = (
-				01B8899A165AA4A60048C30E /* HTMLLabel.h */,
-				01B8899B165AA4A60048C30E /* HTMLLabel.m */,
+				01DCA0B216CC31E400675C86 /* HTMLLabel.h */,
+				01DCA0B316CC31E400675C86 /* HTMLLabel.m */,
 			);
 			name = HTMLLabel;
-			path = ../../../HTMLLabel;
+			path = ../../HTMLLabel;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -206,7 +206,7 @@
 				01B88973165A9D6B0048C30E /* main.m in Sources */,
 				01B88977165A9D6B0048C30E /* AppDelegate.m in Sources */,
 				01B88980165A9D6B0048C30E /* ParsingViewController.m in Sources */,
-				01B8899C165AA4A60048C30E /* HTMLLabel.m in Sources */,
+				01DCA0B416CC31E400675C86 /* HTMLLabel.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

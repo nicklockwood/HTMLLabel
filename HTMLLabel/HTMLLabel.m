@@ -399,13 +399,10 @@
 @end
 
 
-@interface HTMLStylesheet ()
+@interface HTMLStylesheet : NSObject <NSCopying>
 
 @property (nonatomic, copy) NSArray *selectors;
 @property (nonatomic, copy) NSDictionary *stylesBySelector;
-
-- (NSDictionary *)dictionaryRepresentation;
-- (HTMLStyles *)stylesForToken:(HTMLToken *)token;
 
 @end
 
@@ -427,6 +424,21 @@
         defaultStylesheet = [[HTMLStylesheet alloc] initWithDictionary:styles];
     }
     return defaultStylesheet;
+}
+
++ (instancetype)stylesheetWithDictionary:(NSDictionary *)dictionary
+{
+    return [[self alloc] initWithDictionary:dictionary];
+}
+
++ (NSDictionary *)dictionaryByMergingStyleDictionaries:(NSArray *)dictionaries
+{
+    HTMLStylesheet *stylesheet = [[HTMLStylesheet alloc] init];
+    for (NSDictionary *dictionary in dictionaries)
+    {
+        [stylesheet addStylesFromDictionary:dictionary];
+    }
+    return [stylesheet dictionaryRepresentation];
 }
 
 - (void)addStylesFromDictionary:(NSDictionary *)dictionary
@@ -477,11 +489,19 @@
 
 - (id)initWithDictionary:(NSDictionary *)dictionary
 {
+    if ((self = [self init]))
+    {
+        [self addStylesFromDictionary:dictionary];
+    }
+    return self;
+}
+
+- (id)init
+{
     if ((self = [super init]))
     {
         _selectors = [NSMutableArray array];
         _stylesBySelector = [NSMutableDictionary dictionary];
-        [self addStylesFromDictionary:dictionary];
     }
     return self;
 }
@@ -1098,22 +1118,22 @@
 
 @implementation NSString (HTMLRendering)
 
-- (CGSize)sizeWithHtmlStylesheet:(HTMLStylesheet *)stylesheet forWidth:(CGFloat)width
+- (CGSize)sizeWithHtmlStylesheet:(NSDictionary *)stylesheet forWidth:(CGFloat)width
 {
     HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] initWithHTML:self];
     HTMLLayout *layout = [[HTMLLayout alloc] init];
     layout.tokens = tokenizer.tokens;
-    layout.stylesheet = stylesheet;
+    layout.stylesheet = [HTMLStylesheet stylesheetWithDictionary:stylesheet];
     layout.maxWidth = width;
     return layout.size;
 }
 
-- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(HTMLStylesheet *)stylesheet
+- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(NSDictionary *)stylesheet
 {
     HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] init];
     HTMLLayout *layout = [[HTMLLayout alloc] init];
     layout.tokens = tokenizer.tokens;
-    layout.stylesheet = stylesheet;
+    layout.stylesheet = [HTMLStylesheet stylesheetWithDictionary:stylesheet];
     layout.maxWidth = rect.size.width;
     
     //TODO: crop to correct height
@@ -1138,7 +1158,6 @@
 
 - (void)setUp
 {
-    _stylesheet = [[HTMLStylesheet alloc] init];
     _layout = [[HTMLLayout alloc] init];
     self.stylesheet = nil;
 
@@ -1180,21 +1199,22 @@
 - (void)setFont:(UIFont *)font
 {
     super.font = font;
-    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f]} forSelector:@"html"];
+    self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet, @{@"html": @{HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f]}}]];
 }
 
 - (void)setTextColor:(UIColor *)textColor
 {
     super.textColor = textColor;
-    self.stylesheet = [_stylesheet stylesheetByaddingStyles:@{HTMLTextColor: self.textColor ?: [UIColor blackColor]} forSelector:@"html"];
+    self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet, @{@"html": @{HTMLTextColor: self.textColor ?: [UIColor blackColor]}}]];
 }
 
-- (void)setStylesheet:(HTMLStylesheet *)stylesheet
+- (void)setStylesheet:(NSDictionary *)stylesheet
 {
-    _stylesheet = [[[HTMLStylesheet alloc] initWithDictionary:@{@"html": @{
-                                                    HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f],
-                                                HTMLTextColor: self.textColor ?: [UIColor blackColor]}}] stylesheetByaddingStyles:stylesheet];
-    _layout.stylesheet = _stylesheet;
+    _stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[@{@"html": @{
+                                                              HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f],
+                                                         HTMLTextColor: self.textColor ?: [UIColor blackColor]}}, stylesheet ?: @{}]];
+    
+    _layout.stylesheet = [HTMLStylesheet stylesheetWithDictionary:_stylesheet];
 
     HTMLStyles *styles = [_layout.stylesheet stylesForSelector:@"html"];
     super.font = styles.font ?: self.font;
