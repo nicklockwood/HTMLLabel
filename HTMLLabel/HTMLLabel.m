@@ -1199,13 +1199,13 @@
 - (void)setFont:(UIFont *)font
 {
     super.font = font;
-    self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet, @{@"html": @{HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f]}}]];
+    self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet ?: @{}, @{@"html": @{HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f]}}]];
 }
 
 - (void)setTextColor:(UIColor *)textColor
 {
     super.textColor = textColor;
-    self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet, @{@"html": @{HTMLTextColor: self.textColor ?: [UIColor blackColor]}}]];
+    self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet ?: @{}, @{@"html": @{HTMLTextColor: self.textColor ?: [UIColor blackColor]}}]];
 }
 
 - (void)setStylesheet:(NSDictionary *)stylesheet
