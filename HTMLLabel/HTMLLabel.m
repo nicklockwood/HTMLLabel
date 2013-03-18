@@ -40,8 +40,22 @@
 
 @implementation UIFont (Variants)
 
-- (UIFont *)fontWithSize:(CGFloat)fontSize traits:(NSArray *)traits
+- (BOOL)fontWithName:(NSString *)name hasTrait:(NSString *)trait
 {
+    name = [name lowercaseString];
+    if ([name rangeOfString:trait].location != NSNotFound)
+    {
+        return YES;
+    }
+    else if ([trait isEqualToString:@"oblique"])
+    {
+        return [name rangeOfString:@"italic"].location != NSNotFound;
+    }
+    return NO;
+}
+
+- (UIFont *)fontWithSize:(CGFloat)fontSize traits:(NSArray *)traits
+{    
     NSMutableArray *blacklist = [@[@"bold", @"oblique", @"light", @"condensed"] mutableCopy];
     for (NSString *trait in traits)
     {
@@ -69,7 +83,7 @@
         BOOL match = YES;
         for (NSString *trait in blacklist)
         {
-            if ([[name lowercaseString] rangeOfString:trait].location != NSNotFound)
+            if ([self fontWithName:name hasTrait:trait])
             {
                 match = NO;
                 break;
@@ -77,7 +91,7 @@
         }
         for (NSString *trait in traits)
         {
-            if ([[name lowercaseString] rangeOfString:trait].location == NSNotFound)
+            if (![self fontWithName:name hasTrait:trait])
             {
                 match = NO;
                 break;
