@@ -3,7 +3,7 @@ Purpose
 
 HTMLabel is a simple UILabel subclass for displaying basic HTML content (e.g. bold/italic, links, bullet lists) on iOS without the overhead of using a UIWebView.
 
-HTMLLabel is **BETA** software, and as such should be expect to have bugs. You should also expect undocumented and/or backward-incompatible changes to the interface between now and the 1.0 release. That said, it's been used in a few shiopping apps now and should be safe for production use.
+HTMLLabel is **BETA** software, and as such it should be expected to have bugs. You should also expect undocumented and/or backward-incompatible changes to the interface between now and the 1.0 release. That said, it's been used in a few shipping apps now and should be safe for production use.
 
 
 Installation
