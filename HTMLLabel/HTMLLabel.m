@@ -31,7 +31,10 @@
 //
 
 #import "HTMLLabel.h"
-#import <objc/message.h>
+
+
+//temporary fix
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 
 #pragma mark -
@@ -235,7 +238,14 @@
         SEL selector = NSSelectorFromString(@"colorWithString:");
         if ([UIColor respondsToSelector:selector])
         {
-            textColor = objc_msgSend([UIColor class], selector, textColor);
+     
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warc-performSelector-leaks"
+            
+            textColor = [[UIColor class] performSelector:selector withObject:textColor];
+            
+#pragma GCC diagnostic pop
+            
         }
         else
         {
