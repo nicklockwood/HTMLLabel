@@ -37,6 +37,15 @@
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 
+NSString *const HTMLBold = @"bold";
+NSString *const HTMLItalic = @"italic";
+NSString *const HTMLUnderline = @"underline";
+NSString *const HTMLFont = @"font";
+NSString *const HTMLTextSize = @"textSize";
+NSString *const HTMLTextColor = @"textColor";
+NSString *const HTMLTextAlignment = @"textAlignment";
+
+
 #pragma mark -
 #pragma mark Fonts
 
@@ -170,6 +179,7 @@
 @property (nonatomic, strong, readonly) UIFont *font;
 @property (nonatomic, strong, readonly) UIColor *textColor;
 @property (nonatomic, assign, readonly) CGFloat textSize;
+@property (nonatomic, assign, readonly) NSTextAlignment textAlignment;
 @property (nonatomic, assign, readonly, getter = isBold) BOOL bold;
 @property (nonatomic, assign, readonly, getter = isItalic) BOOL italic;
 @property (nonatomic, assign, readonly, getter = isUnderlined) BOOL underline;
@@ -258,6 +268,11 @@
 - (CGFloat)textSize
 {
     return [_styles[HTMLTextSize] floatValue] ?: [_styles[HTMLFont] pointSize];
+}
+
+- (NSTextAlignment)textAlignment
+{
+    return [_styles[HTMLTextAlignment] integerValue];
 }
 
 - (BOOL)isBold
@@ -1002,9 +1017,12 @@
     
     CGPoint position = CGPointZero;
     CGFloat lineHeight = 0.0f;
+    NSInteger lineStartIndex = 0;
     BOOL newLine = YES;
+    BOOL wrapped = NO;
     
-    for (int i = 0; i < [_tokens count]; i++)
+    NSInteger tokenCount = [_tokens count];
+    for (NSInteger i = 0; i < tokenCount; i++)
     {
         HTMLToken *token = _tokens[i];
         HTMLStyles *styles = [_stylesheet stylesForToken:token];
@@ -1070,6 +1088,7 @@
                     //new line
                     position = CGPointMake(token.attributes.listLevel * indent, position.y + lineHeight);
                     lineHeight = 0.0f;
+                    wrapped = YES;
                 }
                 else
                 {
@@ -1102,6 +1121,50 @@
             lineHeight = MAX(lineHeight, size.height);
             position.x += size.width;
             newLine = NO;
+        }
+        
+        if (newLine || wrapped || i == tokenCount - 1)
+        {
+            //determine if adjustment is needed
+            NSInteger lastIndex = (wrapped || newLine)? i - 1: i;
+            NSTextAlignment alignment = [_stylesheet stylesForToken:_tokens[lineStartIndex]].textAlignment;
+            if (self.maxWidth && alignment != NSTextAlignmentLeft)
+            {
+                //adjust alignment
+                CGRect frame = [_frames[lastIndex] CGRectValue];
+                CGFloat lineWidth = frame.origin.x + frame.size.width - [_frames[lineStartIndex] CGRectValue].origin.x;
+                CGFloat offset = 0.0f;
+                if (alignment == NSTextAlignmentRight)
+                {
+                    offset = self.maxWidth - lineWidth;
+                }
+                else if (alignment == NSTextAlignmentCenter)
+                {
+                    offset = (self.maxWidth - lineWidth) / 2;
+                }
+                else
+                {
+                    //TODO: other alignment options
+                }
+                
+                for (NSInteger j = lineStartIndex; j <= lastIndex; j++)
+                {
+                    CGRect frame = [_frames[j] CGRectValue];
+                    frame.origin.x += offset;
+                    _frames[j] = [NSValue valueWithCGRect:frame];
+                }
+            }
+            
+            //prepare for next line
+            if (newLine)
+            {
+                lineStartIndex = i + 1;
+            }
+            else if (wrapped)
+            {
+                lineStartIndex = i;
+                wrapped = NO;
+            }
         }
     }
 }
@@ -1141,7 +1204,7 @@
 
 @implementation NSString (HTMLRendering)
 
-- (CGSize)sizeWithHtmlStylesheet:(NSDictionary *)stylesheet forWidth:(CGFloat)width
+- (CGSize)sizeForWidth:(CGFloat)width withHTMLStyles:(NSDictionary *)stylesheet
 {
     HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] initWithHTML:self];
     HTMLLayout *layout = [[HTMLLayout alloc] init];
@@ -1151,7 +1214,7 @@
     return layout.size;
 }
 
-- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(NSDictionary *)stylesheet
+- (void)drawInRect:(CGRect)rect withHTMLStyles:(NSDictionary *)stylesheet
 {
     HTMLTokenizer *tokenizer = [[HTMLTokenizer alloc] init];
     HTMLLayout *layout = [[HTMLLayout alloc] init];
@@ -1229,6 +1292,12 @@
 {
     super.textColor = textColor;
     self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet ?: @{}, @{@"html": @{HTMLTextColor: self.textColor ?: [UIColor blackColor]}}]];
+}
+
+- (void)setTextAlignment:(NSTextAlignment)textAlignment
+{
+    super.textAlignment = textAlignment;
+    self.stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[_stylesheet ?: @{}, @{@"html": @{HTMLTextAlignment: @(textAlignment)}}]];
 }
 
 - (void)setStylesheet:(NSDictionary *)stylesheet

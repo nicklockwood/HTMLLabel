@@ -90,11 +90,13 @@
                 {
                     _outputField.stylesheet = @{
                     @"html": @{HTMLTextSize: @20},
+                    @"h2": @{HTMLTextAlignment: @(NSTextAlignmentRight)},
                     @"a": @{HTMLFont: @"Georgia", HTMLTextColor: [UIColor redColor]},
+                    @"a:active": @{HTMLTextColor: [UIColor purpleColor]},
                     @".green": @{HTMLTextColor: [UIColor greenColor], HTMLBold: @YES}
                     };
                     
-                    _inputField.text = @"Lorem <a href=\"foo\">ipsum dolor sit er elit</a> lamet, consectetaur cillium adipisicing pecu, sed do eiusmod tempor <i>incididunt</i> ut labore et dolore magna aliqua. <b>Ut enim</b> ad minim veniam, <span class=\"green\">quis nostrud</span> exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Nam liber te conscient to factor tum poen legum odioque civiuda.";
+                    _inputField.text = @"<h2>Lorem Ipsum</h2>Lorem <a href=\"foo\">ipsum dolor sit er elit</a> lamet, consectetaur cillium adipisicing pecu, sed do eiusmod tempor <i>incididunt</i> ut labore et dolore magna aliqua. <b>Ut enim</b> ad minim veniam, <span class=\"green\">quis nostrud</span> exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Nam liber te conscient to factor tum poen legum odioque civiuda.";
                     break;
                 }
                 default:

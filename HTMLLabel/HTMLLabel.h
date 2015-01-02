@@ -42,12 +42,13 @@
 #endif
 
 
-static NSString *const HTMLBold = @"bold";
-static NSString *const HTMLItalic = @"italic";
-static NSString *const HTMLUnderline = @"underline";
-static NSString *const HTMLFont = @"font";
-static NSString *const HTMLTextSize = @"textSize";
-static NSString *const HTMLTextColor = @"textColor";
+UIKIT_EXTERN NSString *const HTMLBold; //bold
+UIKIT_EXTERN NSString *const HTMLItalic; //italic
+UIKIT_EXTERN NSString *const HTMLUnderline; // underline
+UIKIT_EXTERN NSString *const HTMLFont; // font
+UIKIT_EXTERN NSString *const HTMLTextSize; // textSize
+UIKIT_EXTERN NSString *const HTMLTextColor; // textColor
+UIKIT_EXTERN NSString *const HTMLTextAlignment; // textAlignment
 
 
 @interface UIFont (Variants)
@@ -61,8 +62,8 @@ static NSString *const HTMLTextColor = @"textColor";
 
 @interface NSString (HTMLRendering)
 
-- (CGSize)sizeWithHtmlStylesheet:(NSDictionary *)stylesheet forWidth:(CGFloat)width;
-- (void)drawHtmlInRect:(CGRect)rect withHtmlStylesheet:(NSDictionary *)stylesheet;
+- (CGSize)sizeForWidth:(CGFloat)width withHTMLStyles:(NSDictionary *)stylesheet;
+- (void)drawInRect:(CGRect)rect withHTMLStyles:(NSDictionary *)stylesheet;
 
 @end
 
