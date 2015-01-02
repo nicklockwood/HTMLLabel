@@ -90,7 +90,7 @@
                 {
                     _outputField.stylesheet = @{
                     @"html": @{HTMLTextSize: @20},
-                    @"h2": @{HTMLTextAlignment: @(NSTextAlignmentRight)},
+                    @"h2": @{HTMLTextAlignment: @(NSTextAlignmentCenter)},
                     @"a": @{HTMLFont: @"Georgia", HTMLTextColor: [UIColor redColor]},
                     @"a:active": @{HTMLTextColor: [UIColor purpleColor]},
                     @".green": @{HTMLTextColor: [UIColor greenColor], HTMLBold: @YES}

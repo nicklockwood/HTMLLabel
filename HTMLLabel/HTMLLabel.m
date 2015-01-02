@@ -1304,13 +1304,16 @@ NSString *const HTMLTextAlignment = @"textAlignment";
 {
     _stylesheet = [HTMLStylesheet dictionaryByMergingStyleDictionaries:@[@{@"html": @{
                                                               HTMLFont: self.font ?: [UIFont systemFontOfSize:17.0f],
-                                                         HTMLTextColor: self.textColor ?: [UIColor blackColor]}}, stylesheet ?: @{}]];
+                                                              HTMLTextColor: self.textColor ?: [UIColor blackColor],
+                                                              HTMLTextAlignment: @(self.textAlignment)
+                                                              }}, stylesheet ?: @{}]];
     
     _layout.stylesheet = [HTMLStylesheet stylesheetWithDictionary:_stylesheet];
 
     HTMLStyles *styles = [_layout.stylesheet stylesForSelector:@"html"];
     super.font = styles.font ?: self.font;
     super.textColor = styles.textColor ?: self.textColor;
+    super.textAlignment = styles.textAlignment;
     [self setNeedsDisplay];
 }
 
