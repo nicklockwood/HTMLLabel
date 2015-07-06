@@ -458,7 +458,8 @@ NSString *const HTMLTextAlignment = @"textAlignment";
         @"a": @{HTMLTextColor: [UIColor blueColor], HTMLUnderline: @YES},
         @"a:active": @{HTMLTextColor: [UIColor redColor]},
         @"b,strong,h1,h2,h3,h4,h5,h6": @{HTMLBold: @YES},
-        @"i,em": @{HTMLItalic: @YES}
+        @"i,em": @{HTMLItalic: @YES},
+        @"u": @{HTMLUnderline: @YES}
         };
         defaultStylesheet = [[HTMLStylesheet alloc] initWithDictionary:styles];
     }
