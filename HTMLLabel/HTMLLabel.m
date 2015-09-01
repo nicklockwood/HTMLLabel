@@ -726,7 +726,8 @@ NSString *const HTMLTextAlignment = @"textAlignment";
                 [self replaceEntities:@{
                  @"nbsp":@"\u00A0", @"bull":@"•", @"copy":@"©", @"reg":@"®", @"deg":@"°",
                  @"ndash":@"–", @"mdash":@"—", @"apos":@"’", @"lsquo":@"‘", @"ldquo":@"“", @"rsquo":@"’", @"rdquo":@"”",
-                 @"cent":@"¢", @"pound":@"£", @"euro":@"€", @"yen":@"¥", @"ntilde":@"\u00F1", @"#39":@"'"
+                 @"cent":@"¢", @"pound":@"£", @"euro":@"€", @"yen":@"¥", @"ntilde":@"\u00F1", @"#39":@"'", @"eacute":@"é",
+                 @"frac14":@"¼", @"frac12":@"½", @"frac34":@"¾"
                  } inString:html];
                 [self replacePattern:@"&(?!(gt|lt|amp|quot|(#[0-9]+)));" inString:html withPattern:@""];
                 [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
