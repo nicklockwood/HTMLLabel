@@ -235,7 +235,7 @@ NSString *const HTMLTextAlignment = @"textAlignment";
     }
     else
     {
-        font = [font fontWithSize:pointSize];
+        font = [UIFont fontWithName:font.fontName size:pointSize];
     }
     return font;
 }
@@ -727,14 +727,16 @@ NSString *const HTMLTextAlignment = @"textAlignment";
                 [self replaceEntities:@{
                  @"nbsp":@"\u00A0", @"bull":@"•", @"copy":@"©", @"reg":@"®", @"deg":@"°",
                  @"ndash":@"–", @"mdash":@"—", @"apos":@"’", @"lsquo":@"‘", @"ldquo":@"“", @"rsquo":@"’", @"rdquo":@"”",
-                 @"cent":@"¢", @"pound":@"£", @"euro":@"€", @"yen":@"¥", @"ntilde":@"\u00F1", @"#39":@"'"
+                 @"cent":@"¢", @"pound":@"£", @"euro":@"€", @"yen":@"¥", @"ntilde":@"\u00F1", @"#39":@"'", @"eacute":@"é",
+                 @"frac14":@"¼", @"frac12":@"½", @"frac34":@"¾", @"ouml":@"ö", @"uuml":@"ü", @"oslash":@"ø", @"iacute":@"í",
+                 @"oacute":@"ó", @"uacute":@"ú"
                  } inString:html];
                 [self replacePattern:@"&(?!(gt|lt|amp|quot|(#[0-9]+)));" inString:html withPattern:@""];
                 [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
                 [self replacePattern:@"<(?![/a-z])" inString:html withPattern:@"&lt;"];
                 
                 //sanitize tags
-                [self replacePattern:@"([-_a-z]+)=([^\"'][^ >]+)" inString:html withPattern:@"$1=\"$2\""];
+                [self replacePattern:@"([-_a-z]+)=([^\"'][^ >]+)" inString:html withPattern:@"$1=$2"];
                 [self replacePattern:@"<(area|base|br|col|command|embed|hr|img|input|link|meta|param|source)(\\s[^>]*)?>" inString:html withPattern:@"<$1/>"];
                 
                 //wrap in html tag
@@ -1335,6 +1337,7 @@ NSString *const HTMLTextAlignment = @"textAlignment";
     UITouch *touch = [touches anyObject];
     [_layout tokenAtPosition:[touch locationInView:self]].attributes.active = YES;
     [self setNeedsDisplay];
+    [self.nextResponder touchesBegan:touches withEvent:event];
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
@@ -1359,12 +1362,14 @@ NSString *const HTMLTextAlignment = @"textAlignment";
         }
         if (openURL) [[UIApplication sharedApplication] openURL:URL];
     }
+    [self.nextResponder touchesEnded:touches withEvent:event];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
 {
     [[_layout valueForKeyPath:@"tokens.attributes"] makeObjectsPerformSelector:@selector(setActive:) withObject:0];
     [self setNeedsDisplay];
+    [self.nextResponder touchesCancelled:touches withEvent:event];
 }
 
 @end
