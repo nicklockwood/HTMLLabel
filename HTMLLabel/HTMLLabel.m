@@ -725,9 +725,11 @@ NSString *const HTMLTextAlignment = @"textAlignment";
                 
                 //sanitize entities
                 [self replaceEntities:@{
-                 @"nbsp":@"\u00A0", @"bull":@"•", @"copy":@"©", @"reg":@"®", @"deg":@"°",
-                 @"ndash":@"–", @"mdash":@"—", @"apos":@"’", @"lsquo":@"‘", @"ldquo":@"“", @"rsquo":@"’", @"rdquo":@"”",
-                 @"cent":@"¢", @"pound":@"£", @"euro":@"€", @"yen":@"¥", @"ntilde":@"\u00F1", @"#39":@"'"
+                @"nbsp":@"\u00A0", @"bull":@"•", @"copy":@"©", @"reg":@"®", @"deg":@"°",
+                @"ndash":@"–", @"mdash":@"—", @"apos":@"’", @"lsquo":@"‘", @"ldquo":@"“", @"rsquo":@"’", @"rdquo":@"”",
+                @"cent":@"¢", @"pound":@"£", @"euro":@"€", @"yen":@"¥", @"ntilde":@"\u00F1", @"#39":@"'",
+                @"frac14":@"¼", @"frac12":@"½", @"frac34":@"¾", @"ouml":@"ö", @"uuml":@"ü", @"oslash":@"ø",
+                @"iacute":@"í", @"oacute":@"ó", @"uacute":@"ú", @"eacute":@"é",
                  } inString:html];
                 [self replacePattern:@"&(?!(gt|lt|amp|quot|(#[0-9]+)));" inString:html withPattern:@""];
                 [self replacePattern:@"&(?![a-z0-9]+;)" inString:html withPattern:@"&amp;"];
