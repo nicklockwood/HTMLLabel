@@ -235,7 +235,7 @@ NSString *const HTMLTextAlignment = @"textAlignment";
     }
     else
     {
-        font = [font fontWithSize:pointSize];
+        font = [UIFont fontWithName:font.fontName size:pointSize];
     }
     return font;
 }
