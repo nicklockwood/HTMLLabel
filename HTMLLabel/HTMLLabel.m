@@ -1335,6 +1335,7 @@ NSString *const HTMLTextAlignment = @"textAlignment";
     UITouch *touch = [touches anyObject];
     [_layout tokenAtPosition:[touch locationInView:self]].attributes.active = YES;
     [self setNeedsDisplay];
+    [self.nextResponder touchesBegan:touches withEvent:event];
 }
 
 - (void)touchesEnded:(NSSet *)touches withEvent:(UIEvent *)event
@@ -1359,12 +1360,14 @@ NSString *const HTMLTextAlignment = @"textAlignment";
         }
         if (openURL) [[UIApplication sharedApplication] openURL:URL];
     }
+    [self.nextResponder touchesEnded:touches withEvent:event];
 }
 
 - (void)touchesCancelled:(NSSet *)touches withEvent:(UIEvent *)event
 {
     [[_layout valueForKeyPath:@"tokens.attributes"] makeObjectsPerformSelector:@selector(setActive:) withObject:0];
     [self setNeedsDisplay];
+    [self.nextResponder touchesCancelled:touches withEvent:event];
 }
 
 @end
