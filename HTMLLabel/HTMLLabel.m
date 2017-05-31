@@ -1367,4 +1367,11 @@ NSString *const HTMLTextAlignment = @"textAlignment";
     [self setNeedsDisplay];
 }
 
+- (CGSize)intrinsicContentSize
+{
+    _layout.maxWidth = self.bounds.size.width;
+    return _layout.size;
+}
+
+
 @end
