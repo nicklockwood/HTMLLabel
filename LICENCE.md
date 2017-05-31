@@ -1,5 +1,4 @@
 HTMLLabel
-version 1.0, November 18th, 2012
 
 Copyright (C) 2012 Charcoal Design
 

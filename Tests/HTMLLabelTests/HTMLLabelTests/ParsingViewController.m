@@ -54,6 +54,10 @@
         }
         else
         {
+            // Reset styles
+            _outputField.stylesheet = nil;
+            _outputField.font = [UIFont systemFontOfSize:14.0f];
+
             switch (buttonIndex)
             {
                 case 1:

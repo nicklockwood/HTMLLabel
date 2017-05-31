@@ -1,6 +1,6 @@
 {
   "name": "HTMLLabel",
-  "version": "1.0",
+  "version": "1.1",
   "license": "zlib",
   "summary": "HTMLabel is a simple UILabel subclass for displaying basic HTML content (e.g. bold/italic, links, bullet lists) on iOS without the overhead of using a UIWebView.",
   "authors": {
@@ -8,7 +8,7 @@
   },
   "source": {
     "git": "https://github.com/nicklockwood/HTMLLabel.git",
-    "tag": "1.0"
+    "tag": "1.1"
   },
   "homepage": "http://github.com/nicklockwood/HTMLLabel",
   "platforms": {

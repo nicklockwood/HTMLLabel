@@ -1,7 +1,7 @@
 //
 //  HTMLLabel.m
 //
-//  Version 1.0 beta
+//  Version 1.1
 //
 //  Created by Nick Lockwood on 18/11/2012.
 //  Copyright 2012 Charcoal Design
@@ -114,7 +114,7 @@ NSString *const HTMLTextAlignment = @"textAlignment";
             return [UIFont fontWithName:name size:fontSize];
         }
     }
-    return self;
+    return [UIFont fontWithName:self.fontName size:fontSize];
 }
 
 - (UIFont *)boldFontOfSize:(CGFloat)fontSize

@@ -1,7 +1,7 @@
 //
 //  HTMLLabel.m
 //
-//  Version 1.0 beta
+//  Version 1.1
 //
 //  Created by Nick Lockwood on 18/11/2012.
 //  Copyright 2012 Charcoal Design
