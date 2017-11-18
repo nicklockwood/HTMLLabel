@@ -736,7 +736,7 @@ NSString *const HTMLTextAlignment = @"textAlignment";
                 [self replacePattern:@"<(?![/a-z])" inString:html withPattern:@"&lt;"];
                 
                 //sanitize tags
-                [self replacePattern:@"([-_a-z]+)=([^\"'][^ >]+)" inString:html withPattern:@"$1=\"$2\""];
+                [self replacePattern:@"([-_a-z]+)=([^\"'][^ >]+)" inString:html withPattern:@"$1=$2"];
                 [self replacePattern:@"<(area|base|br|col|command|embed|hr|img|input|link|meta|param|source)(\\s[^>]*)?>" inString:html withPattern:@"<$1/>"];
                 
                 //wrap in html tag
